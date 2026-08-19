@@ -361,3 +361,15 @@ input.toggle {
   margin: 0;
   accent-color: var(--accent);
 }
+
+/* Copyright + version line at the bottom of the app chrome. */
+.app-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}

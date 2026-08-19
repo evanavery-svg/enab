@@ -21,6 +21,12 @@ npm run build
 npm run preview    # http://localhost:4173
 ```
 
+**Don't open `dist/index.html` by double-clicking it.** Browsers block
+JavaScript modules on `file://` pages, so the app can't start — it has to be
+served over http. ENAB detects this and says so rather than showing a blank
+page, but the fix is always to use `npm run dev`, `npm run preview`, or a real
+host.
+
 ### Putting it on your phone
 
 The app is a PWA, so it installs from the browser and then behaves like a native
@@ -35,6 +41,17 @@ app — full screen, its own icon, works with no connection.
 Your budget is stored in that browser's IndexedDB. It never leaves the device,
 which also means **nothing is backed up for you** — use Settings → Back up
 regularly and keep the JSON somewhere safe.
+
+### Updates
+
+The installed app updates itself. A new build activates immediately rather than
+waiting for tabs to close, and ENAB re-checks for one every time the app comes
+back to the foreground — which is what actually matters on a phone, where an
+installed app is resumed rather than reloaded. When a new version is found the
+app reloads itself once, on the spot. Nothing is lost: everything is already
+written to the database.
+
+So the update flow is just: upload a new `dist/`, then open the app.
 
 ## How the budget works
 

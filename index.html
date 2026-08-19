@@ -21,10 +21,135 @@
     <meta name="apple-mobile-web-app-title" content="ENAB" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />
+
+    <!--
+      Boot screen styles are inline so they work before any stylesheet loads.
+      If the app never starts, this is what the user sees instead of a blank
+      white page.
+    -->
+    <style>
+      html, body { height: 100%; margin: 0; }
+      body {
+        background: #f4f6f8;
+        color: #16202b;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        body { background: #10161d; color: #e6edf3; }
+      }
+      #boot {
+        /* dvh so the panel centres against the real viewport, not a parent
+           whose height nothing has established yet. */
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        padding: 32px 24px;
+        text-align: center;
+        box-sizing: border-box;
+      }
+      #boot .mark {
+        display: grid;
+        place-items: center;
+        width: 54px;
+        height: 54px;
+        border-radius: 14px;
+        background: #137180;
+        color: #fff;
+        font-size: 24px;
+        font-weight: 800;
+      }
+      #boot h1 { margin: 0; font-size: 19px; font-weight: 650; }
+      #boot p { margin: 0; max-width: 460px; font-size: 14.5px; line-height: 1.5; opacity: 0.75; }
+      #boot code {
+        display: inline-block;
+        padding: 2px 7px;
+        border-radius: 5px;
+        background: rgba(127, 140, 155, 0.2);
+        font-size: 13.5px;
+      }
+      #boot.spinner-only h1, #boot.spinner-only p { display: none; }
+      #boot .spin {
+        width: 22px;
+        height: 22px;
+        border: 2.5px solid rgba(127, 140, 155, 0.3);
+        border-top-color: #137180;
+        border-radius: 50%;
+        animation: boot-spin 0.7s linear infinite;
+      }
+      @keyframes boot-spin { to { transform: rotate(360deg); } }
+      @media (prefers-reduced-motion: reduce) { #boot .spin { animation: none; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
-    <noscript>ENAB needs JavaScript to run.</noscript>
+    <div id="root">
+      <div id="boot" class="spinner-only">
+        <div class="mark">E</div>
+        <div class="spin"></div>
+        <h1></h1>
+        <p></p>
+      </div>
+    </div>
+
+    <noscript>
+      <div style="padding: 32px; text-align: center">ENAB needs JavaScript to run.</div>
+    </noscript>
+
+    <!--
+      Classic (non-module) script so it runs even when the module bundle is the
+      thing that failed. It turns three silent failures into readable ones.
+    -->
+    <script>
+      (function () {
+        var boot = document.getElementById('boot')
+        if (!boot) return
+
+        function show(title, message) {
+          if (!document.getElementById('boot')) return // app already took over
+          boot.className = ''
+          var spin = boot.querySelector('.spin')
+          if (spin) spin.style.display = 'none'
+          boot.querySelector('h1').textContent = title
+          boot.querySelector('p').innerHTML = message
+        }
+
+        // Opening the built index.html straight from disk looks like it should
+        // work, but browsers block ES modules over file:// — the page just
+        // comes up white. Say so plainly.
+        if (location.protocol === 'file:') {
+          show(
+            'ENAB needs to be served over http',
+            'Browsers block JavaScript modules on <code>file://</code> pages, so opening this file directly ' +
+              'shows a blank screen. Run <code>npm run dev</code> and open the address it prints, ' +
+              'or <code>npm run preview</code> after a build.',
+          )
+          return
+        }
+
+        window.addEventListener('error', function (event) {
+          if (event && event.target && event.target !== window && event.target.tagName) {
+            show(
+              "ENAB couldn't load",
+              'A file failed to load: <code>' +
+                String(event.target.src || event.target.href || '').split('/').pop() +
+                '</code>. If you are hosting this yourself, check the files in <code>dist/</code> were all uploaded.',
+            )
+          }
+        }, true)
+
+        // Nothing rendered after a generous wait means boot stalled.
+        setTimeout(function () {
+          show(
+            'ENAB is taking longer than expected',
+            'The app did not finish starting. Reload the page — if it keeps happening, your browser may be ' +
+              'blocking local storage (private browsing blocks the database ENAB needs).',
+          )
+        }, 10000)
+      })()
+    </script>
+
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

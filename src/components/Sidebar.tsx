@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Icon } from './Icon'
 import { AccountFormModal } from './AccountForm'
+import { AppFooter } from './AppFooter'
 import { useData } from '../hooks/useData'
 import { useUi } from '../state/ui'
 import type { Account, Cents } from '../types'
@@ -102,6 +103,7 @@ export function Sidebar() {
           <Icon name="settings" />
           <span>Settings</span>
         </NavLink>
+        <AppFooter />
       </div>
 
       {addingAccount && <AccountFormModal onClose={() => setAddingAccount(false)} />}

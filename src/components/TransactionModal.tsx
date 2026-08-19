@@ -6,10 +6,9 @@ import { Icon } from './Icon'
 import { useData } from '../hooks/useData'
 import { useUi, toast } from '../state/ui'
 import {
-  createScheduled,
   createTransaction,
   deleteTransaction,
-  findOrCreatePayeeId,
+  scheduleFromTransaction,
   updateTransaction,
 } from '../db/actions'
 import { FREQUENCIES, FREQUENCY_LABELS } from '../budget/recurrence'
@@ -156,30 +155,15 @@ export function TransactionModal() {
         })
         toast('Transaction saved')
       } else {
-        await createTransaction({
+        const txnId = await createTransaction({
           ...payload,
           subtransactions: isSplit ? legs.map(({ id: _drop, ...rest }) => rest) : undefined,
         })
         if (repeat !== 'once') {
-          // The payee may have just been typed for the first time, in which
-          // case createTransaction minted it — look it up so the schedule
-          // carries the payee too rather than showing "No payee" forever.
-          const schedulePayeeId =
-            transferAccountId ? null : (payeeId ?? (payeeName.trim() ? await findOrCreatePayeeId(payeeName) : null))
-          await createScheduled({
-            accountId,
-            nextDate: date,
-            frequency: repeat,
-            amount,
-            payeeId: schedulePayeeId,
-            categoryId: showCategory && !isSplit ? categoryId : null,
-            memo,
-            flag,
-            transferAccountId,
-            subtransactions: isSplit ? legs : undefined,
-            autoEnter: true,
-            paused: false,
-          })
+          // Built from the saved transaction so the schedule always matches
+          // what was actually recorded, and starts at the next occurrence
+          // rather than repeating the one just entered.
+          await scheduleFromTransaction(txnId, repeat)
           toast('Transaction added and scheduled to repeat')
         } else {
           toast('Transaction added')

@@ -11,6 +11,7 @@ import type {
   Cents,
   ClearedStatus,
   FlagColor,
+  Frequency,
   Goal,
   Id,
   ISODate,
@@ -673,6 +674,40 @@ export async function createScheduled(
   const id = uid('sched')
   await db.scheduled.put({ ...input, id, deleted: false })
   return id
+}
+
+/**
+ * Turn a transaction that was just entered into a repeating schedule.
+ *
+ * Reading the saved row back — rather than re-deriving from form state — keeps
+ * the schedule byte-for-byte consistent with what was actually recorded,
+ * payee included. `nextDate` skips to the *following* occurrence, because the
+ * first one has already been entered; leaving it on the same date would make
+ * the next auto-enter pass duplicate it.
+ */
+export async function scheduleFromTransaction(
+  transactionId: Id,
+  frequency: Frequency,
+  opts: { autoEnter?: boolean } = {},
+): Promise<Id | null> {
+  if (frequency === 'once') return null
+  const t = await db.transactions.get(transactionId)
+  if (!t) return null
+
+  return createScheduled({
+    accountId: t.accountId,
+    nextDate: nextOccurrence(t.date, frequency) ?? t.date,
+    frequency,
+    amount: t.amount,
+    payeeId: t.payeeId,
+    categoryId: t.categoryId,
+    memo: t.memo,
+    flag: t.flag,
+    transferAccountId: t.transferAccountId ?? null,
+    subtransactions: t.subtransactions,
+    autoEnter: opts.autoEnter ?? true,
+    paused: false,
+  })
 }
 
 export async function updateScheduled(id: Id, patch: Partial<ScheduledTransaction>): Promise<void> {

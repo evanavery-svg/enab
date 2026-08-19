@@ -1,29 +1,71 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
-import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import { DataProvider } from './hooks/useData'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { ensureInitialized, runAutoEnter } from './db/actions'
+import { registerServiceWorker } from './pwa'
 import './styles/index.css'
 
-async function boot() {
-  await ensureInitialized()
-  // Catch up on any scheduled transactions that came due while the app was
-  // closed, before the first render reads the data.
-  await runAutoEnter().catch(() => 0)
+const container = document.getElementById('root')!
 
-  createRoot(document.getElementById('root')!).render(
+/** Replace the boot screen with a readable failure instead of a blank page. */
+function renderBootFailure(message: string) {
+  container.innerHTML = ''
+  const wrap = document.createElement('div')
+  wrap.style.cssText =
+    'min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px 24px;text-align:center'
+  wrap.innerHTML = `
+    <div style="display:grid;place-items:center;width:54px;height:54px;border-radius:14px;background:#137180;color:#fff;font-size:24px;font-weight:800">E</div>
+    <h1 style="margin:0;font-size:19px">ENAB couldn't start</h1>
+    <p style="margin:0;max-width:440px;font-size:14.5px;line-height:1.5;opacity:.75">${message}</p>
+  `
+  const button = document.createElement('button')
+  button.textContent = 'Try again'
+  button.className = 'btn btn-primary'
+  button.onclick = () => window.location.reload()
+  wrap.appendChild(button)
+  container.appendChild(wrap)
+}
+
+async function boot() {
+  try {
+    await ensureInitialized()
+  } catch (error) {
+    // Almost always a blocked IndexedDB: private windows and some hardened
+    // privacy settings refuse it outright.
+    console.error('ENAB failed to open its database:', error)
+    renderBootFailure(
+      'ENAB stores your budget in this browser, and the browser refused access to its database. ' +
+        'Private or incognito windows block this — try a normal window.',
+    )
+    return
+  }
+
+  // Catch up on scheduled transactions that came due while the app was closed.
+  // A failure here must never stop the app from opening.
+  await runAutoEnter().catch((error) => {
+    console.error('Could not enter scheduled transactions:', error)
+    return 0
+  })
+
+  createRoot(container).render(
     <StrictMode>
-      <HashRouter>
-        <DataProvider>
-          <App />
-        </DataProvider>
-      </HashRouter>
+      <ErrorBoundary>
+        <HashRouter>
+          <DataProvider>
+            <App />
+          </DataProvider>
+        </HashRouter>
+      </ErrorBoundary>
     </StrictMode>,
   )
 }
 
-boot()
+boot().catch((error) => {
+  console.error('ENAB failed to start:', error)
+  renderBootFailure('An unexpected error stopped ENAB from starting. Reloading usually clears it.')
+})
 
-registerSW({ immediate: true })
+registerServiceWorker()

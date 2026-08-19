@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import { Icon, type IconName } from '../components/Icon'
+import { AppFooter } from '../components/AppFooter'
 import { useData } from '../hooks/useData'
 import { updateSettings } from '../db/actions'
 
@@ -63,11 +64,14 @@ export default function MorePage() {
               <span>{settings.budgetName}</span>
             </div>
             <p className="dim" style={{ fontSize: 13.5, marginBottom: 0 }}>
-              {transactions.length} transactions · {budget.months.length} months of budget history ·{' '}
+              {transactions.length} transaction{transactions.length === 1 ? '' : 's'} ·{' '}
+              {budget.months.length} month{budget.months.length === 1 ? '' : 's'} of budget history ·{' '}
               {money(budget.summaries.get(budget.months[budget.months.length - 1] ?? '')?.totalAvailable ?? 0)}{' '}
               sitting in categories.
             </p>
           </div>
+
+          <AppFooter style={{ marginTop: 18 }} />
         </div>
       </div>
     </>
