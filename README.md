@@ -65,6 +65,13 @@ Your budget is stored in that browser's IndexedDB. It never leaves the device,
 which also means **nothing is backed up for you** — use Settings → Back up
 regularly and keep the JSON somewhere safe.
 
+### Versioning
+
+The patch number in `package.json` is bumped on every change, and the version
+shows in full at the bottom of the sidebar and the More tab. That is how you
+tell at a glance whether the installed app has actually picked up a new build:
+if the footer still reads the old number, the update has not landed yet.
+
 ### Updates
 
 The installed app updates itself. A new build activates immediately rather than

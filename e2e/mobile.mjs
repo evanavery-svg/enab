@@ -67,13 +67,35 @@ await step('the page itself can never scroll', async () => {
 await step('the shell is exactly the height that is on screen', async () => {
   const measured = await page.evaluate(() => ({
     innerHeight: window.innerHeight,
+    htmlHeight: document.documentElement.getBoundingClientRect().height,
     appHeight: document.querySelector('.app').getBoundingClientRect().height,
-    variable: getComputedStyle(document.documentElement).getPropertyValue('--app-height').trim(),
   }))
+  if (Math.abs(measured.htmlHeight - measured.innerHeight) > 1) {
+    throw new Error(`html is ${measured.htmlHeight}px inside a ${measured.innerHeight}px viewport`)
+  }
   if (Math.abs(measured.appHeight - measured.innerHeight) > 1) {
-    throw new Error(
-      `the shell is ${measured.appHeight}px inside a ${measured.innerHeight}px viewport (--app-height: ${measured.variable || 'unset'})`,
-    )
+    throw new Error(`the shell is ${measured.appHeight}px inside a ${measured.innerHeight}px viewport`)
+  }
+})
+
+await step('the shell height is not a baked-in pixel value', async () => {
+  // A measured height frozen into a variable is what left a band of
+  // background under the tab bar: iOS misreports it while a standalone app is
+  // launching and never fires a resize to correct it. The height must come
+  // from a unit the engine re-evaluates, so it survives being wrong once.
+  const declared = await page.evaluate(() => {
+    const rules = [...document.styleSheets].flatMap((sheet) => {
+      try {
+        return [...sheet.cssRules]
+      } catch {
+        return []
+      }
+    })
+    const htmlRule = rules.find((r) => r.selectorText === 'html' && r.style?.height)
+    return htmlRule ? htmlRule.style.height : null
+  })
+  if (!declared || !declared.includes('dvh')) {
+    throw new Error(`html height is declared as "${declared}" — expected a dynamic viewport unit`)
   }
 })
 

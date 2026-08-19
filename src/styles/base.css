@@ -6,12 +6,25 @@
 
 /*
  * The shell is exactly the height that is on screen, and nothing outside it
- * can scroll. `--app-height` is measured from window.innerHeight (see
- * lib/viewport.ts); the dvh fallback covers the first paint before that runs.
+ * can scroll.
+ *
+ * `dvh` and nothing else. Every alternative has a failure mode:
+ *
+ *  - `100%` and `100vh` are the *layout* viewport — the URL-bar-hidden height.
+ *    Taller than the screen in Safari, so the page scrolls and takes the
+ *    header and tab bar with it. That was the original bug.
+ *  - `position: fixed; inset: 0` is measured against that same too-tall box.
+ *  - Measuring `window.innerHeight` into a variable bakes in a pixel value.
+ *    iOS misreports it while a standalone app is still launching, and no
+ *    resize event follows to correct it, so the shell stays the wrong height
+ *    for the whole session — a permanent band of background under the tab bar.
+ *
+ * `dvh` is the one value the engine keeps correct on its own, in a browser tab
+ * and an installed app alike. `overflow: hidden` here and on the body is what
+ * actually stops the document scrolling.
  */
 html {
   height: 100dvh;
-  height: var(--app-height, 100dvh);
   overflow: hidden;
   /* Stop iOS reflowing text when the device is rotated. */
   -webkit-text-size-adjust: 100%;

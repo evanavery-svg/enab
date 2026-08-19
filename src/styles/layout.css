@@ -4,7 +4,7 @@
 
 .app {
   display: flex;
-  /* Inherits the measured viewport height from html/body. */
+  /* Inherits the viewport height from html/body. */
   height: 100%;
   overflow: hidden;
 }
