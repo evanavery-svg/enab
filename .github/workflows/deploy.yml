@@ -38,18 +38,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Force Pages onto the Actions pipeline so the competing branch builder
-      # (which serves unbuilt source) stops running. Idempotent: a repo already
-      # in workflow mode is left as-is. Tolerates a not-yet-enabled Pages site.
-      - name: Force Pages to deploy from Actions, not a branch
-        run: |
-          gh api -X PUT "repos/${{ github.repository }}/pages" \
-            -f build_type=workflow 2>/dev/null \
-          || gh api -X POST "repos/${{ github.repository }}/pages" \
-            -f build_type=workflow 2>/dev/null \
-          || echo "Could not set build_type; configure-pages will still try."
-        env:
-          GH_TOKEN: ${{ github.token }}
+      # NOTE: the Pages *source* setting cannot be changed from here. The
+      # default Actions token is not allowed to edit Pages configuration
+      # (the API returns 403 "Resource not accessible by integration"), so if
+      # Pages is set to "Deploy from a branch" it must be switched to
+      # "GitHub Actions" by hand in Settings → Pages. Until then GitHub's own
+      # branch builder keeps serving the unbuilt repo root and races this
+      # workflow. This job's deploy is correct regardless; it just can't stop
+      # the competing one.
 
       - uses: actions/setup-node@v4
         with:

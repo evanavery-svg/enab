@@ -139,12 +139,14 @@
           // is the easiest way to deploy the wrong thing.
           if (/\.tsx?($|\?)/.test(file) || /\/src\//.test(url)) {
             show(
-              'This is the source, not the built app',
-              'The page is trying to load <code>' +
+              'Wrong publish setting',
+              'GitHub is serving the raw repository instead of the built app (it tried to load <code>' +
                 file +
-                '</code> — TypeScript, which browsers cannot run. What got published is the repository, not the ' +
-                'built app. Run <code>npm run build</code> and publish the <code>dist/</code> folder, or let the ' +
-                'included GitHub Pages workflow do it for you (Settings \u2192 Pages \u2192 Source: GitHub Actions).',
+                '</code>, which browsers cannot run). Fix it once:' +
+                '<br><br>1. Open the repo on GitHub' +
+                '<br>2. <b>Settings \u2192 Pages</b>' +
+                '<br>3. Under <b>Build and deployment</b>, set <b>Source</b> to <b>GitHub Actions</b>' +
+                '<br><br>Then reopen this page. The build workflow is already set up \u2014 this switch just stops GitHub from serving the source.',
             )
             return
           }
