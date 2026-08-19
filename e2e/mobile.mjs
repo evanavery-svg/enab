@@ -78,23 +78,28 @@ await step('the shell is exactly the height that is on screen', async () => {
   }
 })
 
-await step('the shell height tracks the measured viewport', async () => {
-  // iOS standalone reports a too-short viewport for the first moment of a
-  // launch, so the height is measured from window.innerHeight into
-  // --app-height and re-applied after the settle (see lib/viewport.ts). Assert
-  // the variable is set and the shell matches the viewport, so a regression to
-  // a bare height unit (which came up short on device) is caught.
-  const state = await page.evaluate(() => ({
-    variable: getComputedStyle(document.documentElement).getPropertyValue('--app-height').trim(),
-    innerHeight: window.innerHeight,
-    appHeight: document.querySelector('.app').getBoundingClientRect().height,
-  }))
-  if (!/px$/.test(state.variable)) throw new Error(`--app-height is "${state.variable}", expected a px value`)
-  if (Math.abs(parseFloat(state.variable) - state.innerHeight) > 1) {
-    throw new Error(`--app-height ${state.variable} != viewport ${state.innerHeight}px`)
-  }
-  if (Math.abs(state.appHeight - state.innerHeight) > 1) {
-    throw new Error(`shell is ${state.appHeight}px inside a ${state.innerHeight}px viewport`)
+await step('the bars are pinned to the screen edges, not stacked in a sized box', async () => {
+  // The recurring gap-under-the-nav bug came from the tab bar being the last
+  // child of a box whose height was computed from the viewport — wrong for a
+  // moment on an iOS standalone launch. The bars are now position: fixed,
+  // anchored to top: 0 / bottom: 0 of the viewport, so their placement does
+  // not depend on any height calculation. Assert that mechanism directly.
+  const bars = await page.evaluate(() => {
+    const top = document.querySelector('.topbar')
+    const nav = document.querySelector('.bottom-nav')
+    return {
+      topPosition: getComputedStyle(top).position,
+      navPosition: getComputedStyle(nav).position,
+      topTop: Math.round(top.getBoundingClientRect().top),
+      navBottom: Math.round(nav.getBoundingClientRect().bottom),
+      vh: window.innerHeight,
+    }
+  })
+  if (bars.topPosition !== 'fixed') throw new Error(`.topbar position is ${bars.topPosition}, expected fixed`)
+  if (bars.navPosition !== 'fixed') throw new Error(`.bottom-nav position is ${bars.navPosition}, expected fixed`)
+  if (bars.topTop !== 0) throw new Error(`.topbar top edge is at ${bars.topTop}px, expected 0`)
+  if (Math.abs(bars.navBottom - bars.vh) > 1) {
+    throw new Error(`.bottom-nav bottom edge is at ${bars.navBottom}px in a ${bars.vh}px viewport`)
   }
 })
 

@@ -6,15 +6,10 @@ import { DataProvider } from './hooks/useData'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ensureInitialized, runAutoEnter } from './db/actions'
 import { registerServiceWorker } from './pwa'
-import { installViewportHeightSync } from './lib/viewport'
 // Imported for its side effect: it must be listening before the browser
 // fires `beforeinstallprompt`, which happens early.
 import './lib/install'
 import './styles/index.css'
-
-// Size the shell to the real viewport before the first paint, and keep it
-// synced — see lib/viewport.ts for why iOS needs this.
-installViewportHeightSync()
 
 const container = document.getElementById('root')!
 

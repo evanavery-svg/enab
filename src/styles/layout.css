@@ -178,9 +178,41 @@
 
 @media (max-width: 899px) {
   .sidebar { display: none; }
-  .bottom-nav { display: flex; }
   .app { flex-direction: column; }
   .main { height: 100%; }
+
+  /*
+   * Pin the two bars to the actual edges of the screen with position: fixed,
+   * exactly the way a native tab bar sits — the reliable pattern the app's
+   * siblings use. Because `bottom: 0` and `top: 0` are anchored to the
+   * viewport itself, nothing here depends on measuring the viewport height,
+   * which is the calculation iOS gets wrong for a moment after a standalone
+   * launch. The content is a fixed box strung between the two bars, so it
+   * scrolls in place while they stay put.
+   */
+  .topbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+  }
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 20;
+  }
+  .content {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: calc(var(--header-h) + env(safe-area-inset-top));
+    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    /* Height comes from the top/bottom insets, not a measured value. */
+  }
 }
 @media (min-width: 900px) {
   .fab { display: none; }

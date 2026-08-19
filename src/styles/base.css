@@ -5,22 +5,14 @@
 }
 
 /*
- * The shell is exactly the height that is on screen, and the document itself
- * never scrolls. The height comes from `--app-height`, which JS keeps equal to
- * the real visible height (see lib/viewport.ts) — re-measured after launch and
- * on the first interaction, because iOS reports a too-short viewport for the
- * first moment of a standalone launch and does not always fire a resize when
- * it settles. `100dvh` is the fallback for the first paint before JS runs.
- *
- * History, so this does not get "simplified" back into a bug: `100vh` is the
- * URL-bar-hidden height (too tall, page scrolls); `100dvh` alone comes up
- * short on an iOS standalone launch; `position: fixed; inset: 0` fills the
- * viewport but does not re-measure until a reflow, so it sits short until the
- * first tap. Measuring innerHeight and re-applying it is the reliable path.
+ * Full-height shell with no scrolling document. On desktop the flex layout
+ * fills this height; on a phone the header, content and tab bar are each
+ * pinned to the viewport with position: fixed (see layout.css), so the exact
+ * value of this height does not drive the mobile layout at all — the tab bar
+ * is anchored to `bottom: 0` of the screen regardless.
  */
 html {
-  height: 100dvh;
-  height: var(--app-height, 100dvh);
+  height: 100%;
   overflow: hidden;
   /* Stop iOS reflowing text when the device is rotated. */
   -webkit-text-size-adjust: 100%;
