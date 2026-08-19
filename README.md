@@ -39,7 +39,10 @@ The repo ships a workflow that builds and publishes the app for you.
 > root, and the root `index.html` is the *development* entry point — it points
 > at `src/main.tsx`, which is TypeScript no browser can run. The page comes up
 > reporting that it can't load `main.tsx`. Only the contents of `dist/` are a
-> working app, which is exactly what the workflow uploads.
+> working app, which is exactly what the workflow uploads. (The workflow now
+> forces this setting on every run, so the branch builder cannot creep back
+> and start serving source again — but if you are setting Pages up for the
+> first time, still pick "GitHub Actions".)
 
 Any other static host works the same way: build, then upload `dist/`. The build
 uses relative paths, so serving from a subdirectory (like

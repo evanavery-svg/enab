@@ -5,6 +5,14 @@
 # src/main.tsx, which is TypeScript that only Vite can compile. Publishing the
 # repo as-is gives a page that cannot start. Only the contents of dist/ are a
 # working app, so that is what this workflow uploads.
+#
+# Critically, this also forces the Pages "build type" to `workflow`. If Pages
+# is left on "Deploy from a branch", GitHub runs its own branch builder on
+# every push, which serves the repo root (the source) and *races* this
+# workflow — so the site flips between the real app and the "source, not the
+# built app" error depending on which finished last. Pinning the build type
+# here shuts that branch builder off permanently, without needing anyone to
+# change a repository setting by hand.
 name: Deploy to GitHub Pages
 
 on:
@@ -29,6 +37,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      # Force Pages onto the Actions pipeline so the competing branch builder
+      # (which serves unbuilt source) stops running. Idempotent: a repo already
+      # in workflow mode is left as-is. Tolerates a not-yet-enabled Pages site.
+      - name: Force Pages to deploy from Actions, not a branch
+        run: |
+          gh api -X PUT "repos/${{ github.repository }}/pages" \
+            -f build_type=workflow 2>/dev/null \
+          || gh api -X POST "repos/${{ github.repository }}/pages" \
+            -f build_type=workflow 2>/dev/null \
+          || echo "Could not set build_type; configure-pages will still try."
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - uses: actions/setup-node@v4
         with:
