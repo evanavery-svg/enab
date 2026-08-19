@@ -1,0 +1,149 @@
+# ENAB
+
+A zero-based envelope budgeting app, built as an installable PWA that runs
+entirely on your device. Give every dollar a job, spend from envelopes rather
+than from a balance, and settle overspending month by month instead of letting
+it disappear.
+
+Transactions are entered by hand — there's no bank sync, no account, no server.
+
+## Running it
+
+```bash
+npm install
+npm run dev        # http://localhost:5173
+```
+
+To build and serve the production bundle (the one with the service worker):
+
+```bash
+npm run build
+npm run preview    # http://localhost:4173
+```
+
+### Putting it on your phone
+
+The app is a PWA, so it installs from the browser and then behaves like a native
+app — full screen, its own icon, works with no connection.
+
+1. Serve the contents of `dist/` from anywhere over **HTTPS** (a service worker
+   won't install over plain HTTP, except on `localhost`). Any static host works;
+   the build uses relative paths, so a subdirectory is fine.
+2. Open the URL on your phone.
+3. **iOS:** Share → *Add to Home Screen*. **Android:** the menu → *Install app*.
+
+Your budget is stored in that browser's IndexedDB. It never leaves the device,
+which also means **nothing is backed up for you** — use Settings → Back up
+regularly and keep the JSON somewhere safe.
+
+## How the budget works
+
+The rules are the ones that make envelope budgeting actually add up.
+
+**Ready to Assign** is the money you have but haven't given a job yet:
+
+```
+Ready to Assign = last month's leftover
+                + income this month
+                − everything assigned this month
+                − cash overspending from last month
+```
+
+Money assigned to a future month doesn't reduce the current month — it's shown
+separately in the Ready to Assign breakdown.
+
+**Each category** holds `carried over + assigned + activity`. A positive balance
+rolls forward untouched. A negative one is split in two, because the two kinds of
+overspending are genuinely different:
+
+- **Cash overspending** — you spent money that had already left a checking
+  account. The category resets to zero and next month's Ready to Assign is
+  reduced. The debt is settled; it just came out of next month's money.
+- **Credit overspending** — you charged something you never funded. The negative
+  balance rolls forward in the category itself, because that debt is still real
+  and still unbudgeted.
+
+**Credit cards** each get their own payment category. When you charge something
+to a card and the spending category had money in it, that money moves into the
+card's payment category, ready for the bill. Pay the card and it spends back out.
+Refunds move money back the other way. The upshot: the payment category always
+shows what you can actually afford to pay.
+
+**Age of Money** is how long the dollars you most recently spent sat in your
+accounts first. Income is a FIFO queue; every expense drains it from the oldest
+end. Past 30 days means this month's spending is coming from last month's income.
+
+## Features
+
+**Budgeting** — monthly envelopes, Ready to Assign, move money between
+categories, cover overspending, category groups you can add, rename, hide or
+delete, hideable categories, notes, and per-month history reaching back to your
+first transaction.
+
+**Targets** — needed-for-spending (weekly, monthly, yearly, or every N
+months/years, as *refill up to* or *set aside another*), savings balance,
+savings by a date, and debt payoff. Multi-month targets spread the remainder
+evenly over the months left; weekly targets ask for five payments in a
+five-payday month.
+
+**Auto-assign** — underfunded, assigned last month, spent last month, average
+assigned, average spent, reset to zero — applied to one category or all of them.
+
+**Accounts** — checking, savings and cash on budget; credit cards and lines of
+credit with payment categories; mortgages, loans, investments and other assets
+tracked off budget for net worth.
+
+**Transactions** — splits across categories, transfers between accounts (with
+both legs kept in step), payees that remember their usual category, flags,
+cleared/uncleared/reconciled states, running balances, search and filters, and
+bulk edits.
+
+**Scheduled transactions** — thirteen frequencies, auto-entered when due. Close
+the app for a month and it catches up on next open.
+
+**Reconciling** — enter what the bank says, and any difference becomes a visible
+adjustment transaction rather than a silent edit. Reconciled rows lock.
+
+**Reports** — spending by category or group, income versus spending, spending
+over time, net worth, and Age of Money, over any range from three months to all
+time.
+
+**Everything else** — light/dark/system themes, currency and number formats,
+CSV import from bank exports with column matching, CSV export, full JSON backup
+and restore, and Fresh Start.
+
+## Tests
+
+```bash
+npm test           # unit tests: budget engine, targets, money parsing
+npm run test:e2e   # browser tests, needs `npm run preview` running
+```
+
+The unit tests cover the parts where a mistake would quietly cost you money —
+rollover, the two kinds of overspending, credit card payment categories,
+transfers, splits, target maths, and amount parsing. The end-to-end suites drive
+the real UI: budgeting a month, charging a card, reconciling, splitting,
+scheduling, and a backup/restore round trip.
+
+If Chromium lives somewhere unusual, point at it:
+
+```bash
+PLAYWRIGHT_CHROMIUM=/path/to/chrome npm run test:e2e
+```
+
+## Layout
+
+```
+src/
+  budget/     the engine: envelope maths, targets, recurrence, age of money
+  db/         Dexie schema, seed data, and every mutation
+  components/ shared UI — modals, fields, charts, the transaction editor
+  pages/      budget, accounts, register, reports, payees, scheduled, settings
+  lib/        money, dates, CSV, backup
+  styles/     design tokens and stylesheets
+e2e/          browser test suites
+scripts/      icon generation (no image dependencies — raw PNG encoding)
+```
+
+Amounts are integer cents everywhere. Dates are `YYYY-MM-DD` and months are
+`YYYY-MM`, both in local time — a budget is lived locally, not in UTC.

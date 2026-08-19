@@ -1,0 +1,175 @@
+/* ------------------------------------------------------------------ *
+ * Design tokens. Light is the base; dark overrides only the values.
+ * ------------------------------------------------------------------ */
+
+:root {
+  /* Surfaces */
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --surface-3: #e3e8ee;
+  --overlay: rgba(15, 23, 32, 0.45);
+
+  /* Ink */
+  --text: #16202b;
+  --text-dim: #5b6b7c;
+  --text-faint: #8a99a8;
+  --border: #dde3ea;
+  --border-strong: #c6d0da;
+
+  /* Brand + semantic */
+  --accent: #1f7a8c;
+  --accent-soft: #d8ecf1;
+  --accent-text: #ffffff;
+  --positive: #2e7d4f;
+  --positive-soft: #d9f0e2;
+  --warning: #a8720d;
+  --warning-soft: #fdeecd;
+  --danger: #b3261e;
+  --danger-soft: #fbdedc;
+  --info: #2f5fa8;
+  --info-soft: #dce8fb;
+  --neutral-pill: #e6ebf1;
+  --neutral-pill-text: #55636f;
+
+  /* Flags */
+  --flag-red: #d93a34;
+  --flag-orange: #e07b1a;
+  --flag-yellow: #d7b010;
+  --flag-green: #3a9b52;
+  --flag-blue: #2f7fd1;
+  --flag-purple: #8154c4;
+
+  /* Chart series — brand-neutral, distinguishable at small sizes */
+  --c1: #2a78d6;
+  --c2: #eb6834;
+  --c3: #1baf7a;
+  --c4: #eda100;
+  --c5: #e87ba4;
+  --c6: #008300;
+  --c7: #4a3aa7;
+  --c8: #e34948;
+
+  /* Shape + motion */
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+  --shadow-1: 0 1px 2px rgba(16, 24, 32, 0.06), 0 1px 3px rgba(16, 24, 32, 0.08);
+  --shadow-2: 0 4px 12px rgba(16, 24, 32, 0.1), 0 2px 4px rgba(16, 24, 32, 0.06);
+  --shadow-3: 0 12px 32px rgba(16, 24, 32, 0.18);
+
+  --header-h: 56px;
+  --nav-h: 60px;
+  --sidebar-w: 264px;
+
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    'Noto Sans', sans-serif;
+  --font-num: ui-monospace, 'SF Mono', SFMono-Regular, 'Roboto Mono', Menlo, Consolas, monospace;
+}
+
+:root[data-theme='dark'],
+:root[data-theme='system'] {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+
+    --bg: #10161d;
+    --surface: #182027;
+    --surface-2: #1f2932;
+    --surface-3: #2a353f;
+    --overlay: rgba(0, 0, 0, 0.6);
+
+    --text: #e6edf3;
+    --text-dim: #9dacba;
+    --text-faint: #6d7d8c;
+    --border: #2a343d;
+    --border-strong: #3a4650;
+
+    --accent: #4bb3c8;
+    --accent-soft: #133b44;
+    --accent-text: #06222a;
+    --positive: #58c98b;
+    --positive-soft: #123527;
+    --warning: #e0ad4c;
+    --warning-soft: #3a2d10;
+    --danger: #f0776e;
+    --danger-soft: #3d1a18;
+    --info: #6da4ee;
+    --info-soft: #16273f;
+    --neutral-pill: #28323b;
+    --neutral-pill-text: #9dacba;
+
+    --flag-red: #ef6b63;
+    --flag-orange: #eb9a4a;
+    --flag-yellow: #ddc44a;
+    --flag-green: #62bd77;
+    --flag-blue: #5f9ee0;
+    --flag-purple: #a37fd6;
+
+    --c1: #3987e5;
+    --c2: #d95926;
+    --c3: #199e70;
+    --c4: #c98500;
+    --c5: #d55181;
+    --c6: #008300;
+    --c7: #9085e9;
+    --c8: #e66767;
+
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+    --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.45);
+    --shadow-3: 0 12px 32px rgba(0, 0, 0, 0.55);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #10161d;
+  --surface: #182027;
+  --surface-2: #1f2932;
+  --surface-3: #2a353f;
+  --overlay: rgba(0, 0, 0, 0.6);
+
+  --text: #e6edf3;
+  --text-dim: #9dacba;
+  --text-faint: #6d7d8c;
+  --border: #2a343d;
+  --border-strong: #3a4650;
+
+  --accent: #4bb3c8;
+  --accent-soft: #133b44;
+  --accent-text: #06222a;
+  --positive: #58c98b;
+  --positive-soft: #123527;
+  --warning: #e0ad4c;
+  --warning-soft: #3a2d10;
+  --danger: #f0776e;
+  --danger-soft: #3d1a18;
+  --info: #6da4ee;
+  --info-soft: #16273f;
+  --neutral-pill: #28323b;
+  --neutral-pill-text: #9dacba;
+
+  --flag-red: #ef6b63;
+  --flag-orange: #eb9a4a;
+  --flag-yellow: #ddc44a;
+  --flag-green: #62bd77;
+  --flag-blue: #5f9ee0;
+  --flag-purple: #a37fd6;
+
+  --c1: #3987e5;
+  --c2: #d95926;
+  --c3: #199e70;
+  --c4: #c98500;
+  --c5: #d55181;
+  --c6: #008300;
+  --c7: #9085e9;
+  --c8: #e66767;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
