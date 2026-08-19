@@ -162,7 +162,7 @@
 .pill-warning { background: var(--warning-soft); color: var(--warning); }
 .pill-danger { background: var(--danger-soft); color: var(--danger); }
 .pill-info { background: var(--info-soft); color: var(--info); }
-.pill-accent { background: var(--accent-soft); color: var(--accent); }
+.pill-accent { background: var(--accent-soft); color: var(--accent-ink); }
 
 .divider { height: 1px; background: var(--border); border: 0; margin: 14px 0; }
 
@@ -288,7 +288,7 @@
 .toasts {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--nav-h) + 16px + env(safe-area-inset-bottom));
+  bottom: calc(env(safe-area-inset-bottom) + 84px);
   transform: translateX(-50%);
   z-index: 90;
   display: flex;

@@ -59,9 +59,25 @@ export function finish(errors) {
 
 /** Works at both desktop and phone widths. */
 export async function addTransaction(page) {
-  const fab = page.locator('.fab')
-  if (await fab.isVisible()) await fab.click()
+  const dockAdd = page.locator('.navdock-add')
+  if (await dockAdd.isVisible().catch(() => false)) await dockAdd.click()
   else await page.locator('.sidebar').getByRole('button', { name: 'Add Transaction' }).click()
+}
+
+/**
+ * Navigate to a section by its label, using the floating dock menu on a phone
+ * and the sidebar on desktop.
+ */
+export async function gotoSection(page, label) {
+  const dockMenu = page.locator('.navdock-menu')
+  if (await dockMenu.isVisible().catch(() => false)) {
+    await dockMenu.click()
+    await page.waitForTimeout(300)
+    await page.locator('.navsheet-item', { hasText: new RegExp('^' + label) }).click()
+  } else {
+    await page.locator('.sidebar').getByRole('link', { name: new RegExp('^' + label) }).first().click()
+  }
+  await page.waitForTimeout(500)
 }
 
 export async function createAccount(page, { name, type = 'checking', balance = '0' }) {

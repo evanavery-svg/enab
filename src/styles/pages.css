@@ -34,10 +34,12 @@
 
 .rta {
   margin: 0;
-  padding: 14px 16px;
+  padding: 16px;
   border-radius: var(--radius-lg);
-  background: var(--positive-soft);
-  color: var(--positive);
+  /* Money waiting to be assigned is the call to action, so it wears the
+     accent rather than a "success" green. */
+  background: var(--accent-soft);
+  color: var(--accent-ink);
   display: flex;
   align-items: center;
   gap: 14px;
@@ -93,7 +95,7 @@
 
 /* --- the table --- */
 
-.budget-table { padding: 0 16px 100px; }
+.budget-table { padding: 0 16px 40px; }
 
 .budget-head,
 .cat-row {
@@ -253,7 +255,7 @@
   .budget-head .col-activity,
   .cat-row .col-activity,
   .group-row .col-activity { display: none; }
-  .budget-table { padding: 0 10px 110px; }
+  .budget-table { padding: 0 10px 24px; }
   .group-row .pill { display: none; }
   .budget-head { padding-inline: 12px; }
   .rta-wrap { padding-inline: 10px; }
@@ -670,7 +672,7 @@
   height: 24px;
   border-radius: 999px;
   background: var(--accent-soft);
-  color: var(--accent);
+  color: var(--accent-ink);
   font-size: 12.5px;
   font-weight: 750;
 }
@@ -756,7 +758,7 @@
   display: block;
   max-width: 100%;
 }
-.plan-list .name:hover { color: var(--accent); }
+.plan-list .name:hover { color: var(--accent-ink); }
 .plan-list li.off { opacity: 0.45; }
 .plan-list .amount-cell { width: 118px; flex: none; }
 

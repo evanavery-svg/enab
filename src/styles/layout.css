@@ -58,7 +58,7 @@
   text-decoration: none;
 }
 .nav-link:hover { background: var(--surface-2); text-decoration: none; }
-.nav-link.active { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+.nav-link.active { background: var(--accent-soft); color: var(--accent-ink); font-weight: 650; }
 .nav-link .nav-amount {
   margin-left: auto;
   font-family: var(--font-num);
@@ -66,7 +66,7 @@
   font-weight: 600;
   color: var(--text-dim);
 }
-.nav-link.active .nav-amount { color: var(--accent); }
+.nav-link.active .nav-amount { color: var(--accent-ink); }
 
 .sidebar-section {
   margin: 16px 0 4px;
@@ -133,62 +133,166 @@
 .content-pad { padding: 16px; }
 .content-narrow { max-width: 780px; margin: 0 auto; }
 
-/* ---------------- Bottom navigation (mobile) ---------------- */
+/* ---------------- Floating nav dock (mobile) ---------------- */
 
-.bottom-nav {
+/*
+ * A floating control instead of a flush tab bar. It sits *above* the bottom
+ * with margin, so it never needs the screen's true bottom edge — the value
+ * iOS reports wrong in a standalone app, which is what made a flush bar
+ * impossible to place. On desktop the sidebar handles navigation and this is
+ * hidden.
+ */
+.navdock {
   display: none;
-  flex: none;
-  align-items: stretch;
-  height: calc(var(--nav-h) + env(safe-area-inset-bottom));
-  padding-bottom: env(safe-area-inset-bottom);
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-}
-.bottom-nav a {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  color: var(--text-faint);
-  font-size: 10.5px;
-  font-weight: 600;
-  text-decoration: none;
-}
-.bottom-nav a.active { color: var(--accent); }
-.bottom-nav a svg { width: 22px; height: 22px; }
-
-.fab {
   position: fixed;
-  right: 18px;
-  bottom: calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));
   z-index: 40;
-  width: 54px;
-  height: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 82%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  backdrop-filter: saturate(180%) blur(20px);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-3);
+}
+
+.navdock-menu {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 8px 0 6px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  border-radius: 999px;
+}
+.navdock-menu:active { background: var(--surface-2); }
+.navdock-menu-icon {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.navdock-menu-label { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.navdock-menu-chev { color: var(--text-faint); margin-right: 2px; }
+
+.navdock-add {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
   border: none;
   border-radius: 999px;
   background: var(--accent);
   color: var(--accent-text);
-  box-shadow: var(--shadow-2);
+}
+.navdock-add:active { filter: brightness(0.92); }
+
+/* ---------------- Nav sheet (mobile menu) ---------------- */
+
+.navsheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0 10px calc(env(safe-area-inset-bottom) + 12px);
+  background: var(--overlay);
+  animation: fade-in 0.16s ease;
+}
+.navsheet {
+  width: 100%;
+  max-width: 460px;
+  padding: 8px 10px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-3);
+  animation: slide-up 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+.navsheet-grabber {
+  width: 38px;
+  height: 5px;
+  margin: 2px auto 10px;
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+.navsheet-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 50px;
+  margin-bottom: 8px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 15.5px;
+  font-weight: 650;
+}
+.navsheet-add:active { filter: brightness(0.92); }
+
+.navsheet-list {
+  display: grid;
+  gap: 2px;
+}
+.navsheet-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 12px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  border-radius: var(--radius);
+  text-align: left;
+  font-size: 16px;
+  font-weight: 500;
+}
+.navsheet-item:active { background: var(--surface-2); }
+.navsheet-item-icon {
   display: grid;
   place-items: center;
+  width: 30px;
+  color: var(--text-dim);
+  flex: none;
 }
-.fab svg { width: 26px; height: 26px; }
+.navsheet-item-label { flex: 1; min-width: 0; }
+.navsheet-item.current { color: var(--accent-ink); font-weight: 650; }
+.navsheet-item.current .navsheet-item-icon { color: var(--accent); }
+.navsheet-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  flex: none;
+}
 
 @media (max-width: 899px) {
   .sidebar { display: none; }
   .app { flex-direction: column; }
   .main { height: 100%; }
+  .navdock { display: flex; }
 
   /*
-   * Pin the two bars to the actual edges of the screen with position: fixed,
-   * exactly the way a native tab bar sits — the reliable pattern the app's
-   * siblings use. Because `bottom: 0` and `top: 0` are anchored to the
-   * viewport itself, nothing here depends on measuring the viewport height,
-   * which is the calculation iOS gets wrong for a moment after a standalone
-   * launch. The content is a fixed box strung between the two bars, so it
-   * scrolls in place while they stay put.
+   * The header is pinned to the top of the viewport; the content is a fixed
+   * box from just below it to the bottom of the viewport. There is no flush
+   * bottom bar any more, so nothing depends on the screen's true bottom edge —
+   * the floating dock hovers above it with margin. The last of the scroll is
+   * padded so content clears the dock.
    */
   .topbar {
     position: fixed;
@@ -197,44 +301,15 @@
     right: 0;
     z-index: 20;
   }
-  /*
-   * When iOS gives a short viewport (see --vp-shortfall in lib/viewport.ts),
-   * the band it paints below the viewport already provides the clearance the
-   * home-indicator padding exists for — and it is painted in the tab bar's
-   * colour. So spend the safe-area padding only to the extent the shortfall
-   * has not already covered it, otherwise the icons float far too high.
-   */
-  .bottom-nav,
-  .content {
-    --nav-pad: max(0px, calc(env(safe-area-inset-bottom) - var(--vp-shortfall, 0px)));
-  }
-  .bottom-nav {
-    display: flex;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 20;
-    height: calc(var(--nav-h) + var(--nav-pad));
-    padding-bottom: var(--nav-pad);
-  }
   .content {
     position: fixed;
     left: 0;
     right: 0;
     top: calc(var(--header-h) + env(safe-area-inset-top));
-    bottom: calc(var(--nav-h) + var(--nav-pad));
-    /* Height comes from the top/bottom insets, not a measured value. */
+    bottom: 0;
+    padding-bottom: calc(env(safe-area-inset-bottom) + 84px);
   }
 }
-@media (min-width: 900px) {
-  .fab { display: none; }
-}
-
-/* A bulk action bar owns the bottom of the screen while it is up, and is the
-   action the user is in the middle of — the add button would only sit on top
-   of it. */
-.app:has(.bulk-bar) .fab { display: none; }
 
 /* ---------------- Drawer (right-side detail panel) ---------------- */
 
@@ -291,3 +366,7 @@
   display: flex;
   gap: 10px;
 }
+
+/* A bulk action bar takes over the bottom while the user is mid-action; the
+   floating dock would only sit on top of it. */
+.app:has(.bulk-bar) .navdock { display: none; }

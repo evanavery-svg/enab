@@ -1,46 +1,55 @@
 /* ------------------------------------------------------------------ *
- * Design tokens. Light is the base; dark overrides only the values.
+ * Design tokens — monochrome with a single orange accent.
+ *
+ * The look is deliberately restrained: near-black ink on near-white paper
+ * (true black on OLED in dark mode), generous radii, soft depth, and orange
+ * used sparingly for the one thing that matters on each screen. Light is the
+ * base; dark and the explicit theme toggle override only the values.
  * ------------------------------------------------------------------ */
 
 :root {
   /* Surfaces */
-  --bg: #f4f6f8;
+  --bg: #f2f2f4;
   --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --surface-3: #e3e8ee;
-  --overlay: rgba(15, 23, 32, 0.45);
+  --surface-2: #ececef;
+  --surface-3: #e1e1e6;
+  --overlay: rgba(0, 0, 0, 0.4);
 
   /* Ink */
-  --text: #16202b;
-  --text-dim: #5b6b7c;
-  --text-faint: #8a99a8;
-  --border: #dde3ea;
-  --border-strong: #c6d0da;
+  --text: #0a0a0a;
+  --text-dim: #6a6a70;
+  --text-faint: #9c9ca3;
+  --border: #e4e4e8;
+  --border-strong: #d3d3d9;
 
-  /* Brand + semantic */
-  --accent: #1f7a8c;
-  --accent-soft: #d8ecf1;
+  /* Accent — orange. `accent` is for fills, icons and indicators;
+     `accent-ink` is the contrast-safe orange for text on the page. */
+  --accent: #ff6a00;
+  --accent-ink: #c85400;
+  --accent-soft: #ffe9d8;
   --accent-text: #ffffff;
-  --positive: #2e7d4f;
-  --positive-soft: #d9f0e2;
-  --warning: #a8720d;
-  --warning-soft: #fdeecd;
-  --danger: #b3261e;
-  --danger-soft: #fbdedc;
-  --info: #2f5fa8;
-  --info-soft: #dce8fb;
-  --neutral-pill: #e6ebf1;
-  --neutral-pill-text: #55636f;
+
+  /* Semantic — muted so the accent stays the loudest colour on screen */
+  --positive: #1a8a4a;
+  --positive-soft: #dcf1e4;
+  --warning: #9a6a00;
+  --warning-soft: #f7eccf;
+  --danger: #cf2e26;
+  --danger-soft: #fadedb;
+  --info: #3a6ea5;
+  --info-soft: #dfe9f4;
+  --neutral-pill: #ececef;
+  --neutral-pill-text: #56565c;
 
   /* Flags */
-  --flag-red: #d93a34;
-  --flag-orange: #e07b1a;
-  --flag-yellow: #d7b010;
-  --flag-green: #3a9b52;
+  --flag-red: #e0342c;
+  --flag-orange: #ff6a00;
+  --flag-yellow: #d7a70a;
+  --flag-green: #2f9e52;
   --flag-blue: #2f7fd1;
   --flag-purple: #8154c4;
 
-  /* Chart series — brand-neutral, distinguishable at small sizes */
+  /* Chart series — brand-neutral, validated for CVD; leave as a set */
   --c1: #2a78d6;
   --c2: #eb6834;
   --c3: #1baf7a;
@@ -51,19 +60,19 @@
   --c8: #e34948;
 
   /* Shape + motion */
-  --radius-sm: 6px;
-  --radius: 10px;
-  --radius-lg: 16px;
-  --shadow-1: 0 1px 2px rgba(16, 24, 32, 0.06), 0 1px 3px rgba(16, 24, 32, 0.08);
-  --shadow-2: 0 4px 12px rgba(16, 24, 32, 0.1), 0 2px 4px rgba(16, 24, 32, 0.06);
-  --shadow-3: 0 12px 32px rgba(16, 24, 32, 0.18);
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 20px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-2: 0 6px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.05);
+  --shadow-3: 0 16px 40px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
 
-  --header-h: 56px;
+  --header-h: 52px;
   --nav-h: 60px;
   --sidebar-w: 264px;
 
-  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'Noto Sans', sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
   --font-num: ui-monospace, 'SF Mono', SFMono-Regular, 'Roboto Mono', Menlo, Consolas, monospace;
 }
 
@@ -76,100 +85,104 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --bg: #10161d;
-    --surface: #182027;
-    --surface-2: #1f2932;
-    --surface-3: #2a353f;
-    --overlay: rgba(0, 0, 0, 0.6);
+    --bg: #000000;
+    --surface: #161618;
+    --surface-2: #232326;
+    --surface-3: #303034;
+    --overlay: rgba(0, 0, 0, 0.65);
 
-    --text: #e6edf3;
-    --text-dim: #9dacba;
-    --text-faint: #6d7d8c;
-    --border: #2a343d;
-    --border-strong: #3a4650;
+    --text: #f5f5f7;
+    --text-dim: #98989f;
+    --text-faint: #636368;
+    --border: #2a2a2e;
+    --border-strong: #3a3a40;
 
-    --accent: #4bb3c8;
-    --accent-soft: #133b44;
-    --accent-text: #06222a;
-    --positive: #58c98b;
-    --positive-soft: #123527;
-    --warning: #e0ad4c;
-    --warning-soft: #3a2d10;
-    --danger: #f0776e;
-    --danger-soft: #3d1a18;
-    --info: #6da4ee;
-    --info-soft: #16273f;
-    --neutral-pill: #28323b;
-    --neutral-pill-text: #9dacba;
+    --accent: #ff8a2e;
+    --accent-ink: #ff9f55;
+    --accent-soft: #331e0d;
+    --accent-text: #161618;
 
-    --flag-red: #ef6b63;
-    --flag-orange: #eb9a4a;
-    --flag-yellow: #ddc44a;
-    --flag-green: #62bd77;
+    --positive: #34c759;
+    --positive-soft: #10361f;
+    --warning: #e0a72e;
+    --warning-soft: #382a0e;
+    --danger: #ff4d43;
+    --danger-soft: #3d1613;
+    --info: #6ea8e0;
+    --info-soft: #142433;
+    --neutral-pill: #26262a;
+    --neutral-pill-text: #98989f;
+
+    --flag-red: #ff5a50;
+    --flag-orange: #ff8a2e;
+    --flag-yellow: #e0c24a;
+    --flag-green: #43c463;
     --flag-blue: #5f9ee0;
     --flag-purple: #a37fd6;
 
     --c1: #3987e5;
-    --c2: #d95926;
+    --c2: #ff7a45;
     --c3: #199e70;
     --c4: #c98500;
     --c5: #d55181;
-    --c6: #008300;
+    --c6: #2f9e52;
     --c7: #9085e9;
     --c8: #e66767;
 
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-    --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.45);
-    --shadow-3: 0 12px 32px rgba(0, 0, 0, 0.55);
+    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.6);
+    --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.6);
+    --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.7);
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #10161d;
-  --surface: #182027;
-  --surface-2: #1f2932;
-  --surface-3: #2a353f;
-  --overlay: rgba(0, 0, 0, 0.6);
+  --bg: #000000;
+  --surface: #161618;
+  --surface-2: #232326;
+  --surface-3: #303034;
+  --overlay: rgba(0, 0, 0, 0.65);
 
-  --text: #e6edf3;
-  --text-dim: #9dacba;
-  --text-faint: #6d7d8c;
-  --border: #2a343d;
-  --border-strong: #3a4650;
+  --text: #f5f5f7;
+  --text-dim: #98989f;
+  --text-faint: #636368;
+  --border: #2a2a2e;
+  --border-strong: #3a3a40;
 
-  --accent: #4bb3c8;
-  --accent-soft: #133b44;
-  --accent-text: #06222a;
-  --positive: #58c98b;
-  --positive-soft: #123527;
-  --warning: #e0ad4c;
-  --warning-soft: #3a2d10;
-  --danger: #f0776e;
-  --danger-soft: #3d1a18;
-  --info: #6da4ee;
-  --info-soft: #16273f;
-  --neutral-pill: #28323b;
-  --neutral-pill-text: #9dacba;
+  --accent: #ff8a2e;
+  --accent-ink: #ff9f55;
+  --accent-soft: #331e0d;
+  --accent-text: #161618;
 
-  --flag-red: #ef6b63;
-  --flag-orange: #eb9a4a;
-  --flag-yellow: #ddc44a;
-  --flag-green: #62bd77;
+  --positive: #34c759;
+  --positive-soft: #10361f;
+  --warning: #e0a72e;
+  --warning-soft: #382a0e;
+  --danger: #ff4d43;
+  --danger-soft: #3d1613;
+  --info: #6ea8e0;
+  --info-soft: #142433;
+  --neutral-pill: #26262a;
+  --neutral-pill-text: #98989f;
+
+  --flag-red: #ff5a50;
+  --flag-orange: #ff8a2e;
+  --flag-yellow: #e0c24a;
+  --flag-green: #43c463;
   --flag-blue: #5f9ee0;
   --flag-purple: #a37fd6;
 
   --c1: #3987e5;
-  --c2: #d95926;
+  --c2: #ff7a45;
   --c3: #199e70;
   --c4: #c98500;
   --c5: #d55181;
-  --c6: #008300;
+  --c6: #2f9e52;
   --c7: #9085e9;
   --c8: #e66767;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.45);
-  --shadow-3: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.6);
+  --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.7);
 }

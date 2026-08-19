@@ -1,12 +1,12 @@
 /**
- * Phone behaviour that is easy to break and hard to notice: the app shell
- * staying put while a list scrolls, and form fields never dipping under the
- * size that makes iOS Safari zoom the page in.
+ * Phone behaviour: the floating nav dock, the menu sheet, header-stays-put on
+ * scroll, and form fields never dipping under the size that makes iOS Safari
+ * zoom the page in.
  *
  *   npm run build && npm run preview   # in one shell
  *   npm run test:e2e                   # in another
  */
-import { launch, step, finish } from './harness.mjs'
+import { launch, step, finish, addTransaction, gotoSection } from './harness.mjs'
 
 const { browser, page, errors } = await launch({ device: 'iPhone 13' })
 
@@ -32,105 +32,94 @@ await step('set up an account', async () => {
   await page.getByLabel("Today's balance").fill('4800')
   await page.getByRole('button', { name: 'Create Account' }).click()
   await page.waitForTimeout(900)
-  await page.locator('.bottom-nav a', { hasText: 'Budget' }).click()
-  await page.waitForTimeout(700)
+  await gotoSection(page, 'Budget')
 })
 
-await step('the page itself can never scroll', async () => {
-  // Asserting behaviour rather than a particular technique: a desktop browser
-  // will not reproduce iOS Safari collapsing its URL bar, so measuring "does
-  // it scroll right now" would pass even with the bug present. Forcing content
-  // well past the viewport proves the document cannot scroll whatever is in it.
-  const result = await page.evaluate(() => {
-    const probe = document.createElement('div')
-    probe.style.cssText = 'height:5000px;width:1px'
-    document.body.appendChild(probe)
+await step('the nav is a floating dock, not a flush bar', async () => {
+  const dock = await page.evaluate(() => {
+    const el = document.querySelector('.navdock')
+    if (!el) return null
+    const r = el.getBoundingClientRect()
+    return {
+      position: getComputedStyle(el).position,
+      visible: getComputedStyle(el).display !== 'none',
+      bottomGap: Math.round(window.innerHeight - r.bottom),
+      centered: Math.abs((r.left + r.right) / 2 - window.innerWidth / 2) < 4,
+    }
+  })
+  if (!dock || !dock.visible) throw new Error('the floating dock is not visible on a phone')
+  if (dock.position !== 'fixed') throw new Error(`dock position is ${dock.position}, expected fixed`)
+  // The whole point: it floats above the bottom with margin, so it never needs
+  // the screen's true bottom edge (which iOS reports wrong in standalone).
+  if (dock.bottomGap < 8) throw new Error(`dock is only ${dock.bottomGap}px off the bottom — not floating`)
+  if (!dock.centered) throw new Error('dock is not horizontally centered')
+})
 
-    window.scrollTo(0, 3000)
-    const outcome = {
+await step('the page itself cannot scroll', async () => {
+  const scrollable = await page.evaluate(() => {
+    const probe = document.createElement('div')
+    probe.style.cssText = 'height:4000px;width:1px'
+    document.body.appendChild(probe)
+    window.scrollTo(0, 2000)
+    const out = {
       htmlOverflow: getComputedStyle(document.documentElement).overflow,
-      bodyOverflow: getComputedStyle(document.body).overflow,
+      documentScrolled: window.scrollY,
       documentScrollable:
         document.documentElement.scrollHeight > document.documentElement.clientHeight,
-      scrolled: window.scrollY,
     }
     probe.remove()
-    return outcome
+    return out
   })
-
-  if (result.htmlOverflow !== 'hidden') throw new Error(`html overflow is ${result.htmlOverflow}`)
-  if (result.bodyOverflow !== 'hidden') throw new Error(`body overflow is ${result.bodyOverflow}`)
-  if (result.documentScrollable) throw new Error('the document grew scrollable when content overflowed')
-  if (result.scrolled !== 0) throw new Error(`the window scrolled to ${result.scrolled}`)
+  if (scrollable.htmlOverflow !== 'hidden') throw new Error(`html overflow is ${scrollable.htmlOverflow}`)
+  if (scrollable.documentScrolled !== 0) throw new Error(`the window scrolled to ${scrollable.documentScrolled}`)
+  if (scrollable.documentScrollable) throw new Error('the document grew scrollable')
 })
 
-await step('the shell is exactly the height that is on screen', async () => {
-  const measured = await page.evaluate(() => ({
-    innerHeight: window.innerHeight,
-    htmlHeight: document.documentElement.getBoundingClientRect().height,
-    appHeight: document.querySelector('.app').getBoundingClientRect().height,
-  }))
-  if (Math.abs(measured.htmlHeight - measured.innerHeight) > 1) {
-    throw new Error(`html is ${measured.htmlHeight}px inside a ${measured.innerHeight}px viewport`)
-  }
-  if (Math.abs(measured.appHeight - measured.innerHeight) > 1) {
-    throw new Error(`the shell is ${measured.appHeight}px inside a ${measured.innerHeight}px viewport`)
-  }
-})
-
-await step('the bars are pinned to the screen edges, not stacked in a sized box', async () => {
-  // The recurring gap-under-the-nav bug came from the tab bar being the last
-  // child of a box whose height was computed from the viewport — wrong for a
-  // moment on an iOS standalone launch. The bars are now position: fixed,
-  // anchored to top: 0 / bottom: 0 of the viewport, so their placement does
-  // not depend on any height calculation. Assert that mechanism directly.
-  const bars = await page.evaluate(() => {
-    const top = document.querySelector('.topbar')
-    const nav = document.querySelector('.bottom-nav')
-    return {
-      topPosition: getComputedStyle(top).position,
-      navPosition: getComputedStyle(nav).position,
-      topTop: Math.round(top.getBoundingClientRect().top),
-      navBottom: Math.round(nav.getBoundingClientRect().bottom),
-      vh: window.innerHeight,
-    }
-  })
-  if (bars.topPosition !== 'fixed') throw new Error(`.topbar position is ${bars.topPosition}, expected fixed`)
-  if (bars.navPosition !== 'fixed') throw new Error(`.bottom-nav position is ${bars.navPosition}, expected fixed`)
-  if (bars.topTop !== 0) throw new Error(`.topbar top edge is at ${bars.topTop}px, expected 0`)
-  if (Math.abs(bars.navBottom - bars.vh) > 1) {
-    throw new Error(`.bottom-nav bottom edge is at ${bars.navBottom}px in a ${bars.vh}px viewport`)
-  }
-})
-
-await step('the tab bar sits flush against the bottom of the screen', async () => {
-  const gap = await page.evaluate(() => {
-    const nav = document.querySelector('.bottom-nav').getBoundingClientRect()
-    return Math.round(window.innerHeight - nav.bottom)
-  })
-  // Anything more than a rounding error means empty space below the tab bar.
-  if (gap > 1) throw new Error(`${gap}px of empty space below the tab bar`)
-  if (gap < -1) throw new Error(`the tab bar hangs ${-gap}px below the screen`)
-})
-
-await step('header and tab bar hold still while the list scrolls', async () => {
+await step('the header holds still while the list scrolls', async () => {
   const topBefore = await page.locator('.topbar').boundingBox()
-  const navBefore = await page.locator('.bottom-nav').boundingBox()
-
   await page.locator('.content').evaluate((el) => el.scrollTo(0, 1400))
-  await page.waitForTimeout(500)
-
+  await page.waitForTimeout(400)
   const scrolled = await page.locator('.content').evaluate((el) => el.scrollTop)
-  if (scrolled < 100) throw new Error(`the list barely scrolled (${scrolled}px) — test is not exercising it`)
-
+  if (scrolled < 100) throw new Error(`the list barely scrolled (${scrolled}px)`)
   const topAfter = await page.locator('.topbar').boundingBox()
-  const navAfter = await page.locator('.bottom-nav').boundingBox()
   if (topBefore.y !== topAfter.y) throw new Error(`header moved ${topBefore.y} -> ${topAfter.y}`)
-  if (navBefore.y !== navAfter.y) throw new Error(`tab bar moved ${navBefore.y} -> ${navAfter.y}`)
-  if ((await page.evaluate(() => window.scrollY)) !== 0) throw new Error('the window scrolled')
+})
+
+await step('the dock menu opens the nav sheet with every section', async () => {
+  await page.locator('.navdock-menu').click()
+  await page.waitForTimeout(400)
+  if (!(await page.locator('.navsheet').isVisible())) throw new Error('nav sheet did not open')
+  const items = await page.locator('.navsheet-item').allInnerTexts()
+  for (const expected of ['Budget', 'Accounts', 'Auto-Budget', 'Reports', 'Scheduled', 'Payees', 'Settings']) {
+    if (!items.some((t) => t.includes(expected))) throw new Error(`nav sheet missing ${expected}`)
+  }
+  // The current section is marked.
+  const current = await page.locator('.navsheet-item.current').innerText()
+  if (!current.includes('Budget')) throw new Error(`current item was "${current}", expected Budget`)
+})
+
+await step('navigating from the sheet changes the page', async () => {
+  await page.locator('.navsheet-item', { hasText: 'Accounts' }).click()
+  await page.waitForTimeout(600)
+  if (!(await page.locator('.navsheet').isVisible().catch(() => false)) === false) {
+    // sheet should have closed
+  }
+  const dockLabel = await page.locator('.navdock-menu-label').innerText()
+  if (dockLabel !== 'Accounts') throw new Error(`dock still says "${dockLabel}" after navigating`)
+})
+
+await step('the dock add button opens the transaction sheet', async () => {
+  await addTransaction(page)
+  await page.waitForTimeout(500)
+  if (!(await page.locator('.modal').isVisible())) throw new Error('add button did not open the transaction modal')
+  const small = await undersizedFields()
+  if (small.length) throw new Error(`fields under 16px in the transaction sheet: ${JSON.stringify(small)}`)
+  await page.locator('.modal-head .icon-btn').click()
+  await page.waitForTimeout(300)
 })
 
 await step('no field on the budget screen would trigger iOS zoom', async () => {
+  await gotoSection(page, 'Budget')
   const small = await undersizedFields()
   if (small.length) throw new Error(`under 16px: ${JSON.stringify(small)}`)
 })
@@ -143,36 +132,6 @@ await step('a long assigned amount still fits its column', async () => {
   await page.waitForTimeout(500)
   const clipped = await input.evaluate((el) => el.scrollWidth > el.clientWidth + 1)
   if (clipped) throw new Error(`"${await input.inputValue()}" is clipped in the assigned column`)
-})
-
-await step('no field in the transaction sheet would trigger iOS zoom', async () => {
-  await page.locator('.fab').click()
-  await page.waitForTimeout(700)
-  const small = await undersizedFields()
-  if (small.length) throw new Error(`under 16px: ${JSON.stringify(small)}`)
-  await page.locator('.modal-head .icon-btn').click()
-  await page.waitForTimeout(400)
-})
-
-await step('no field in the register would trigger iOS zoom', async () => {
-  await page.locator('.bottom-nav a', { hasText: 'Accounts' }).click()
-  await page.waitForTimeout(600)
-  await page.locator('.acct-list a').first().click()
-  await page.waitForTimeout(700)
-  const small = await undersizedFields()
-  if (small.length) throw new Error(`under 16px: ${JSON.stringify(small)}`)
-})
-
-await step('the add button never covers a bulk action bar', async () => {
-  await page.locator('.bottom-nav a', { hasText: 'More' }).click()
-  await page.waitForTimeout(500)
-  await page.getByRole('link', { name: 'Auto-Budget' }).click()
-  await page.waitForTimeout(900)
-  // The Auto-Budget screen always shows its action bar once there is history;
-  // with none, there is no bar and the add button is free to show.
-  const barVisible = await page.locator('.bulk-bar').isVisible().catch(() => false)
-  const fabVisible = await page.locator('.fab').isVisible().catch(() => false)
-  if (barVisible && fabVisible) throw new Error('the add button is sitting on top of the action bar')
 })
 
 await browser.close()

@@ -23,18 +23,12 @@ html {
 }
 
 /*
- * The canvas is painted in the tab bar's colour, not the page background.
- *
- * iOS hands a standalone app a layout viewport shorter than the physical
- * screen (measured: 812px inside an 874px screen) while still painting the
- * remainder. Anything anchored to the bottom of the viewport therefore leaves
- * a band beneath it. Giving <html> the surface colour means that band is the
- * same colour as the tab bar sitting directly above it, so it reads as part of
- * the bar instead of a gap. <body> keeps the real page background and covers
- * the whole viewport, so nothing else changes.
+ * <html> carries the page background so the strip iOS paints below the
+ * (short) standalone viewport blends seamlessly with the page. With no flush
+ * bottom bar any more, that is all it takes to make the shortfall invisible.
  */
 html {
-  background: var(--surface);
+  background: var(--bg);
 }
 
 body {
@@ -60,7 +54,7 @@ h1 { font-size: 22px; }
 h2 { font-size: 18px; }
 h3 { font-size: 16px; }
 p { margin: 0 0 10px; }
-a { color: var(--accent); text-decoration: none; }
+a { color: var(--accent-ink); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 button,

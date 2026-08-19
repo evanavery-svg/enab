@@ -134,8 +134,8 @@ function drawIcon(size, { bg, fg, cornerRadius, inset }) {
 
 /* ---------- outputs ---------- */
 
-const BG = '#137180'
-const FG = '#ffffff'
+const BG = '#0a0a0a'
+const FG = '#ff6a00'
 
 mkdirSync(OUT_DIR, { recursive: true })
 

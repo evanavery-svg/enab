@@ -4,7 +4,7 @@
  *   npm run build && npm run preview   # in one shell
  *   npm run test:e2e                   # in another
  */
-import { launch, step, finish, addTransaction } from './harness.mjs'
+import { launch, step, finish, addTransaction, gotoSection } from './harness.mjs'
 
 const { browser, page, errors } = await launch()
 
@@ -146,11 +146,10 @@ await step('mobile layout', async () => {
   await page.waitForTimeout(400)
   await page.getByRole('button', { name: 'Previous month' }).click()
   await page.waitForTimeout(400)
-  const navVisible = await page.locator('.bottom-nav').isVisible()
-  if (!navVisible) throw new Error('bottom nav missing on mobile')
+  const dockVisible = await page.locator('.navdock').isVisible()
+  if (!dockVisible) throw new Error('floating nav dock missing on mobile')
 })
-await page.locator('.bottom-nav a', { hasText: 'Accounts' }).click()
-await page.waitForTimeout(500)
+await gotoSection(page, 'Accounts')
 
 console.log('\nERRORS:', errors.length ? errors : 'none')
 await browser.close()
