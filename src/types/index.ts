@@ -272,6 +272,8 @@ export interface Settings {
   lockReconciled: boolean
   /** Optional numeric PIN gate on app open. */
   pinHash?: string
+  /** Set once the "add to Home Screen" guide has been shown. */
+  installGuideSeenAt?: string
   createdAt: string
 }
 

@@ -16,7 +16,8 @@ export async function launch({ width = 1280, height = 950 } = {}) {
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`))
 
   await page.goto(BASE_URL, { waitUntil: 'networkidle' })
-  await page.waitForTimeout(700)
+  await page.waitForTimeout(900)
+  await dismissInstallGuide(page)
   return { browser, context, page, errors }
 }
 
@@ -70,4 +71,16 @@ export async function createAccount(page, { name, type = 'checking', balance = '
 export async function gotoBudget(page) {
   await page.getByRole('link', { name: /^Budget/ }).first().click()
   await page.waitForTimeout(600)
+}
+
+/**
+ * A fresh profile gets the "add to Home Screen" guide on first open, exactly
+ * as a real user does. Close it before the suite starts.
+ */
+export async function dismissInstallGuide(page) {
+  const gotIt = page.getByRole('button', { name: 'Got it' })
+  if (await gotIt.isVisible().catch(() => false)) {
+    await gotIt.click()
+    await page.waitForTimeout(400)
+  }
 }

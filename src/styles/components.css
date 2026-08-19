@@ -197,6 +197,9 @@
   overflow: hidden;
 }
 .modal-wide { max-width: 720px; }
+/* The dialog takes focus for screen readers; it needs no visible ring. */
+.modal:focus { outline: none; }
+.modal:focus-visible { outline: none; }
 @keyframes pop-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } }
 
 .modal-head {

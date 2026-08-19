@@ -47,6 +47,11 @@ uses relative paths, so serving from a subdirectory (like
 
 ### Putting it on your phone
 
+On first open ENAB offers step-by-step instructions for adding itself to your
+Home Screen, matched to the device you're on. It shows once, never when you're
+already running the installed app, and can be reopened from Settings → *Add to
+your Home Screen*.
+
 Open the published URL on your phone — it must be **https** (or `localhost`),
 because service workers won't install otherwise.
 

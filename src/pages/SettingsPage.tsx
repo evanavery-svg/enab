@@ -2,6 +2,8 @@ import { useRef, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { ConfirmDialog } from '../components/Modal'
 import { CsvImportModal } from '../components/CsvImportModal'
+import { InstallGuide } from '../components/InstallGuide'
+import { isInstalled } from '../lib/install'
 import { SettingsRow } from '../components/Fields'
 import { useData } from '../hooks/useData'
 import { toast } from '../state/ui'
@@ -35,6 +37,7 @@ export default function SettingsPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const [importingCsv, setImportingCsv] = useState(false)
   const [confirmFreshStart, setConfirmFreshStart] = useState(false)
+  const [showInstallGuide, setShowInstallGuide] = useState(false)
   const [pendingRestore, setPendingRestore] = useState<string | null>(null)
 
   const set = (patch: Partial<Settings>) => updateSettings(patch)
@@ -155,6 +158,25 @@ export default function SettingsPage() {
           </div>
 
           <div className="settings-group">
+            <h3>On your phone</h3>
+            <div className="card">
+              <SettingsRow
+                label={isInstalled() ? 'Installed' : 'Add to your Home Screen'}
+                hint={
+                  isInstalled()
+                    ? 'You are running the installed app. It works offline and updates itself when you open it.'
+                    : 'Open ENAB full screen, with its own icon, working offline.'
+                }
+                compact
+              >
+                <button className="btn btn-sm" onClick={() => setShowInstallGuide(true)}>
+                  <Icon name="download" size={15} /> Show me how
+                </button>
+              </SettingsRow>
+            </div>
+          </div>
+
+          <div className="settings-group">
             <h3>Appearance & behaviour</h3>
             <div className="card">
               <SettingsRow label="Theme">
@@ -254,6 +276,7 @@ export default function SettingsPage() {
       </div>
 
       {importingCsv && <CsvImportModal onClose={() => setImportingCsv(false)} />}
+      {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}
       {pendingRestore !== null && (
         <ConfirmDialog
           title="Restore from backup?"

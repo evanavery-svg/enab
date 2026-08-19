@@ -33,10 +33,14 @@ export function Modal({ title, onClose, children, footer, wide, headerExtra }: M
   }, [onClose])
 
   useEffect(() => {
-    const first = ref.current?.querySelector<HTMLElement>(
-      'input:not([type=hidden]), select, textarea, button',
+    // Send focus to the first field so typing starts where it should. With no
+    // fields, focus the dialog itself rather than the close button — landing
+    // on the X makes dismissing look like the intended action.
+    const field = ref.current?.querySelector<HTMLElement>(
+      'input:not([type=hidden]), select, textarea',
     )
-    first?.focus()
+    if (field) field.focus()
+    else ref.current?.focus()
   }, [])
 
   return createPortal(
@@ -46,7 +50,13 @@ export function Modal({ title, onClose, children, footer, wide, headerExtra }: M
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className={`modal${wide ? ' modal-wide' : ''}`} role="dialog" aria-modal="true" ref={ref}>
+      <div
+        className={`modal${wide ? ' modal-wide' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        ref={ref}
+      >
         <header className="modal-head">
           <h2>{title}</h2>
           {headerExtra}

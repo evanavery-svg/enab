@@ -6,6 +6,9 @@ import { DataProvider } from './hooks/useData'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ensureInitialized, runAutoEnter } from './db/actions'
 import { registerServiceWorker } from './pwa'
+// Imported for its side effect: it must be listening before the browser
+// fires `beforeinstallprompt`, which happens early.
+import './lib/install'
 import './styles/index.css'
 
 const container = document.getElementById('root')!

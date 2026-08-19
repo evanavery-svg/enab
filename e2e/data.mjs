@@ -4,7 +4,7 @@
  *   npm run build && npm run preview   # in one shell
  *   npm run test:e2e                   # in another
  */
-import { launch, step, finish, addTransaction } from './harness.mjs'
+import { launch, step, finish, addTransaction, dismissInstallGuide } from './harness.mjs'
 
 const { browser, page, errors } = await launch()
 
@@ -142,6 +142,8 @@ await step('backup downloads and restores', async () => {
   await page.waitForTimeout(300)
   await page.locator('.modal').getByRole('button', { name: 'Delete everything' }).click()
   await page.waitForTimeout(900)
+  // Fresh Start clears settings, so the first-run guide is offered again.
+  await dismissInstallGuide(page)
   await page.getByRole('link', { name: 'All Accounts' }).first().click()
   await page.waitForTimeout(500)
   if (!(await page.locator('.content').innerText()).includes('No accounts yet')) {
