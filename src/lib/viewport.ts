@@ -26,12 +26,43 @@ function forceReflow(): void {
   void body.offsetHeight
 }
 
+/**
+ * Publish how far the layout viewport falls short of the physical screen.
+ *
+ * Measured on an iPhone 16 Pro in standalone: screen.height 874px against a
+ * 812px viewport. The web view still *paints* that last 62px — it shows the
+ * page background — the layout simply stops early, so a bar anchored to the
+ * bottom of the viewport leaves a visible band beneath it. Publishing the
+ * shortfall lets the tab bar trim its own safe-area padding by the same
+ * amount, so its icons do not end up floating far above the screen edge.
+ */
+function syncShortfall(): void {
+  const standalone =
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as { standalone?: boolean }).standalone === true
+  const shortfall = Math.max(0, Math.round((window.screen?.height ?? 0) - window.innerHeight))
+  // In a browser tab the difference is just chrome, and compensating for it
+  // would be wrong.
+  document.documentElement.style.setProperty(
+    '--vp-shortfall',
+    standalone ? `${shortfall}px` : '0px',
+  )
+}
+
 export function installLayoutSettleFix(): () => void {
   if (typeof window === 'undefined') return () => {}
 
+  syncShortfall()
+  window.addEventListener('resize', syncShortfall)
+  window.addEventListener('orientationchange', syncShortfall)
+
   // Spread across the first second: iOS settles the viewport at an
   // unpredictable moment, and a reflow is cheap.
-  const timers = [0, 50, 150, 350, 700, 1200].map((ms) => window.setTimeout(forceReflow, ms))
+  const settle = () => {
+    syncShortfall()
+    forceReflow()
+  }
+  const timers = [0, 50, 150, 350, 700, 1200].map((ms) => window.setTimeout(settle, ms))
   const raf = requestAnimationFrame(() => requestAnimationFrame(forceReflow))
 
   // Returning from the background is a fresh launch as far as layout goes.
@@ -47,6 +78,8 @@ export function installLayoutSettleFix(): () => void {
     cancelAnimationFrame(raf)
     document.removeEventListener('visibilitychange', onResume)
     window.removeEventListener('pageshow', forceReflow)
+    window.removeEventListener('resize', syncShortfall)
+    window.removeEventListener('orientationchange', syncShortfall)
   }
 }
 
@@ -74,6 +107,8 @@ export interface ViewportReport {
    * remainder. This is the measurement that exposed the black-translucent bug.
    */
   screenShortfall: number
+  /** The `--vp-shortfall` value actually applied to the layout, if any. */
+  shortfallApplied: string
 }
 
 /**
@@ -104,6 +139,7 @@ export function readViewport(): ViewportReport {
     safeAreaTop: styles.getPropertyValue('--probe-safe-top').trim() || 'n/a',
     devicePixelRatio: window.devicePixelRatio,
     screenShortfall: Math.round((window.screen?.height ?? 0) - window.innerHeight),
+    shortfallApplied: styles.getPropertyValue('--vp-shortfall').trim(),
   }
 }
 

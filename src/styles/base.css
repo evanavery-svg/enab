@@ -22,6 +22,21 @@ html {
   --probe-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
+/*
+ * The canvas is painted in the tab bar's colour, not the page background.
+ *
+ * iOS hands a standalone app a layout viewport shorter than the physical
+ * screen (measured: 812px inside an 874px screen) while still painting the
+ * remainder. Anything anchored to the bottom of the viewport therefore leaves
+ * a band beneath it. Giving <html> the surface colour means that band is the
+ * same colour as the tab bar sitting directly above it, so it reads as part of
+ * the bar instead of a gap. <body> keeps the real page background and covers
+ * the whole viewport, so nothing else changes.
+ */
+html {
+  background: var(--surface);
+}
+
 body {
   height: 100%;
   margin: 0;

@@ -197,6 +197,17 @@
     right: 0;
     z-index: 20;
   }
+  /*
+   * When iOS gives a short viewport (see --vp-shortfall in lib/viewport.ts),
+   * the band it paints below the viewport already provides the clearance the
+   * home-indicator padding exists for — and it is painted in the tab bar's
+   * colour. So spend the safe-area padding only to the extent the shortfall
+   * has not already covered it, otherwise the icons float far too high.
+   */
+  .bottom-nav,
+  .content {
+    --nav-pad: max(0px, calc(env(safe-area-inset-bottom) - var(--vp-shortfall, 0px)));
+  }
   .bottom-nav {
     display: flex;
     position: fixed;
@@ -204,13 +215,15 @@
     left: 0;
     right: 0;
     z-index: 20;
+    height: calc(var(--nav-h) + var(--nav-pad));
+    padding-bottom: var(--nav-pad);
   }
   .content {
     position: fixed;
     left: 0;
     right: 0;
     top: calc(var(--header-h) + env(safe-area-inset-top));
-    bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    bottom: calc(var(--nav-h) + var(--nav-pad));
     /* Height comes from the top/bottom insets, not a measured value. */
   }
 }

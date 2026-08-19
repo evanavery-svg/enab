@@ -30,13 +30,20 @@ export function ViewportDiagnostics() {
   // reported "flush" while a band of background sat under the tab bar.
   const barFlush = gap !== null && Math.abs(gap) <= 1
   const viewportFillsScreen = report.screenShortfall <= 2
-  const healthy = barFlush && viewportFillsScreen
+  // A short viewport is not something the app can fix — iOS simply does not
+  // hand it the full height. What it can do is paint the leftover band in the
+  // tab bar's colour so it reads as part of the bar, which is what the
+  // compensation below reports. So a short viewport with the bar flush is a
+  // handled state, not a fault.
+  const compensating = !viewportFillsScreen && report.shortfallApplied
+  const healthy = barFlush && (viewportFillsScreen || compensating)
 
   const rows: [string, string][] = [
     ['Version', `v${APP_VERSION}`],
     ['Display mode', report.mode],
     ['Gap below tab bar', gap === null ? '—' : `${gap}px`],
     ['Screen minus viewport', `${report.screenShortfall}px`],
+    ['Compensation applied', report.shortfallApplied ? `${report.shortfallApplied}` : 'none'],
     ['Tab bar position', report.navPosition ?? '—'],
     ['Tab bar bottom edge', report.navBottom === null ? '—' : `${report.navBottom}px`],
     ['window.innerHeight', `${report.innerHeight}px`],
@@ -55,11 +62,13 @@ export function ViewportDiagnostics() {
         <span>
           {gap === null
             ? 'Tab bar not on screen (desktop layout)'
-            : !viewportFillsScreen
-              ? `The viewport is ${report.screenShortfall}px shorter than the screen — iOS is not giving the app the full height`
-              : barFlush
-                ? 'Tab bar is flush with the bottom of the screen'
-                : `Tab bar is ${gap}px above the bottom of the viewport`}
+            : !barFlush
+              ? `Tab bar is ${gap}px above the bottom of the viewport`
+              : compensating
+                ? `iOS gives a viewport ${report.screenShortfall}px short of the screen; the strip below the bar is painted to match it`
+                : viewportFillsScreen
+                  ? 'Tab bar is flush with the bottom of the screen'
+                  : `The viewport is ${report.screenShortfall}px shorter than the screen and is not being compensated`}
         </span>
       </div>
 
