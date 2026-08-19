@@ -27,16 +27,34 @@ served over http. ENAB detects this and says so rather than showing a blank
 page, but the fix is always to use `npm run dev`, `npm run preview`, or a real
 host.
 
+### Publishing it (GitHub Pages)
+
+The repo ships a workflow that builds and publishes the app for you.
+
+1. On GitHub: **Settings → Pages → Source: GitHub Actions**.
+2. Push. The workflow runs the tests, builds, and publishes `dist/`.
+3. Open the URL Pages shows you.
+
+> **Do not choose "Deploy from a branch."** That publishes the repository
+> root, and the root `index.html` is the *development* entry point — it points
+> at `src/main.tsx`, which is TypeScript no browser can run. The page comes up
+> reporting that it can't load `main.tsx`. Only the contents of `dist/` are a
+> working app, which is exactly what the workflow uploads.
+
+Any other static host works the same way: build, then upload `dist/`. The build
+uses relative paths, so serving from a subdirectory (like
+`yourname.github.io/enab/`) is fine.
+
 ### Putting it on your phone
 
-The app is a PWA, so it installs from the browser and then behaves like a native
-app — full screen, its own icon, works with no connection.
+Open the published URL on your phone — it must be **https** (or `localhost`),
+because service workers won't install otherwise.
 
-1. Serve the contents of `dist/` from anywhere over **HTTPS** (a service worker
-   won't install over plain HTTP, except on `localhost`). Any static host works;
-   the build uses relative paths, so a subdirectory is fine.
-2. Open the URL on your phone.
-3. **iOS:** Share → *Add to Home Screen*. **Android:** the menu → *Install app*.
+- **iOS:** Share → *Add to Home Screen*
+- **Android:** menu → *Install app*
+
+It then behaves like a native app: full screen, its own icon, works with no
+connection.
 
 Your budget is stored in that browser's IndexedDB. It never leaves the device,
 which also means **nothing is backed up for you** — use Settings → Back up

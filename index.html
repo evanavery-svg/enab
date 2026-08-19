@@ -129,14 +129,32 @@
         }
 
         window.addEventListener('error', function (event) {
-          if (event && event.target && event.target !== window && event.target.tagName) {
+          if (!event || !event.target || event.target === window || !event.target.tagName) return
+          var url = String(event.target.src || event.target.href || '')
+          var file = url.split('/').pop()
+
+          // The give-away that unbuilt source got published: this page is the
+          // development index.html, which points at TypeScript no browser can
+          // run. GitHub Pages serves the repository root by default, so this
+          // is the easiest way to deploy the wrong thing.
+          if (/\.tsx?($|\?)/.test(file) || /\/src\//.test(url)) {
             show(
-              "ENAB couldn't load",
-              'A file failed to load: <code>' +
-                String(event.target.src || event.target.href || '').split('/').pop() +
-                '</code>. If you are hosting this yourself, check the files in <code>dist/</code> were all uploaded.',
+              'This is the source, not the built app',
+              'The page is trying to load <code>' +
+                file +
+                '</code> — TypeScript, which browsers cannot run. What got published is the repository, not the ' +
+                'built app. Run <code>npm run build</code> and publish the <code>dist/</code> folder, or let the ' +
+                'included GitHub Pages workflow do it for you (Settings \u2192 Pages \u2192 Source: GitHub Actions).',
             )
+            return
           }
+
+          show(
+            "ENAB couldn't load",
+            'A file failed to load: <code>' +
+              file +
+              '</code>. If you are hosting this yourself, check every file in <code>dist/</code> was uploaded.',
+          )
         }, true)
 
         // Nothing rendered after a generous wait means boot stalled.
