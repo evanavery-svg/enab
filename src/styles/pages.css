@@ -771,3 +771,39 @@
   .sub-list .cost { text-align: left; }
   .sub-list li .btn { margin-left: auto; }
 }
+
+/* ------------------------------------------------------------------ *
+ * Display diagnostics
+ * ------------------------------------------------------------------ */
+
+.diagnostics { margin-top: 12px; }
+
+.diagnostics-verdict {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.diagnostics-verdict.ok { background: var(--positive-soft); color: var(--positive); }
+.diagnostics-verdict.bad { background: var(--danger-soft); color: var(--danger); }
+
+.diagnostics-list { margin: 0; }
+.diagnostics-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.diagnostics-list > div:last-child { border-bottom: none; }
+.diagnostics-list dt { color: var(--text-dim); }
+.diagnostics-list dd {
+  margin: 0;
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+}

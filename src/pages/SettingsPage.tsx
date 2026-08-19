@@ -5,6 +5,7 @@ import { CsvImportModal } from '../components/CsvImportModal'
 import { InstallGuide } from '../components/InstallGuide'
 import { isInstalled } from '../lib/install'
 import { checkForAppUpdate } from '../pwa'
+import { ViewportDiagnostics } from '../components/ViewportDiagnostics'
 import { APP_VERSION } from '../lib/version'
 import { SettingsRow } from '../components/Fields'
 import { useData } from '../hooks/useData'
@@ -206,6 +207,12 @@ export default function SettingsPage() {
                   <Icon name="refresh" size={15} /> {checkingUpdate ? 'Checking…' : 'Check for updates'}
                 </button>
               </SettingsRow>
+              <div className="settings-row" style={{ display: 'block' }}>
+                <details>
+                  <summary style={{ cursor: 'pointer', fontWeight: 550 }}>Display diagnostics</summary>
+                  <ViewportDiagnostics />
+                </details>
+              </div>
             </div>
           </div>
 

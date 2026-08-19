@@ -16,6 +16,10 @@ html {
   overflow: hidden;
   /* Stop iOS reflowing text when the device is rotated. */
   -webkit-text-size-adjust: 100%;
+  /* Mirrors of the safe-area insets, purely so the diagnostics panel can
+     report what the device is actually giving us. */
+  --probe-safe-top: env(safe-area-inset-top, 0px);
+  --probe-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 body {
