@@ -4,22 +4,21 @@
   box-sizing: border-box;
 }
 
+/*
+ * The shell is exactly the height that is on screen, and nothing outside it
+ * can scroll. `--app-height` is measured from window.innerHeight (see
+ * lib/viewport.ts); the dvh fallback covers the first paint before that runs.
+ */
 html {
-  height: 100%;
+  height: 100dvh;
+  height: var(--app-height, 100dvh);
+  overflow: hidden;
   /* Stop iOS reflowing text when the device is rotated. */
   -webkit-text-size-adjust: 100%;
 }
 
-/*
- * The app shell is pinned to the viewport so the document itself can never
- * scroll. Without this, iOS Safari scrolls the whole page as its URL bar
- * collapses and expands, dragging the header and tab bar along with it —
- * `height: 100dvh` alone does not prevent that, because the dynamic viewport
- * unit and the layout viewport disagree mid-gesture.
- */
 body {
-  position: fixed;
-  inset: 0;
+  height: 100%;
   margin: 0;
   overflow: hidden;
   font-family: var(--font);

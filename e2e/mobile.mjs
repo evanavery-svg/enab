@@ -36,21 +36,20 @@ await step('set up an account', async () => {
   await page.waitForTimeout(700)
 })
 
-await step('the shell is pinned so the page can never scroll', async () => {
-  // Asserting the mechanism, not just today's outcome: a desktop browser will
-  // not reproduce iOS Safari collapsing its URL bar, so measuring "does it
-  // scroll right now" would pass even with the bug present. Forcing content
-  // past the viewport proves the document cannot scroll whatever is in it.
+await step('the page itself can never scroll', async () => {
+  // Asserting behaviour rather than a particular technique: a desktop browser
+  // will not reproduce iOS Safari collapsing its URL bar, so measuring "does
+  // it scroll right now" would pass even with the bug present. Forcing content
+  // well past the viewport proves the document cannot scroll whatever is in it.
   const result = await page.evaluate(() => {
     const probe = document.createElement('div')
     probe.style.cssText = 'height:5000px;width:1px'
-    probe.id = 'scroll-probe'
     document.body.appendChild(probe)
 
     window.scrollTo(0, 3000)
     const outcome = {
-      position: getComputedStyle(document.body).position,
-      overflow: getComputedStyle(document.body).overflow,
+      htmlOverflow: getComputedStyle(document.documentElement).overflow,
+      bodyOverflow: getComputedStyle(document.body).overflow,
       documentScrollable:
         document.documentElement.scrollHeight > document.documentElement.clientHeight,
       scrolled: window.scrollY,
@@ -59,10 +58,33 @@ await step('the shell is pinned so the page can never scroll', async () => {
     return outcome
   })
 
-  if (result.position !== 'fixed') throw new Error(`body is position: ${result.position}, expected fixed`)
-  if (result.overflow !== 'hidden') throw new Error(`body overflow is ${result.overflow}, expected hidden`)
+  if (result.htmlOverflow !== 'hidden') throw new Error(`html overflow is ${result.htmlOverflow}`)
+  if (result.bodyOverflow !== 'hidden') throw new Error(`body overflow is ${result.bodyOverflow}`)
   if (result.documentScrollable) throw new Error('the document grew scrollable when content overflowed')
   if (result.scrolled !== 0) throw new Error(`the window scrolled to ${result.scrolled}`)
+})
+
+await step('the shell is exactly the height that is on screen', async () => {
+  const measured = await page.evaluate(() => ({
+    innerHeight: window.innerHeight,
+    appHeight: document.querySelector('.app').getBoundingClientRect().height,
+    variable: getComputedStyle(document.documentElement).getPropertyValue('--app-height').trim(),
+  }))
+  if (Math.abs(measured.appHeight - measured.innerHeight) > 1) {
+    throw new Error(
+      `the shell is ${measured.appHeight}px inside a ${measured.innerHeight}px viewport (--app-height: ${measured.variable || 'unset'})`,
+    )
+  }
+})
+
+await step('the tab bar sits flush against the bottom of the screen', async () => {
+  const gap = await page.evaluate(() => {
+    const nav = document.querySelector('.bottom-nav').getBoundingClientRect()
+    return Math.round(window.innerHeight - nav.bottom)
+  })
+  // Anything more than a rounding error means empty space below the tab bar.
+  if (gap > 1) throw new Error(`${gap}px of empty space below the tab bar`)
+  if (gap < -1) throw new Error(`the tab bar hangs ${-gap}px below the screen`)
 })
 
 await step('header and tab bar hold still while the list scrolls', async () => {
