@@ -166,7 +166,7 @@ export function CsvImportModal({ onClose }: { onClose: () => void }) {
       <Field label="…or paste the rows">
         <textarea
           className="textarea"
-          style={{ fontFamily: 'var(--font-num)', fontSize: 12.5 }}
+          style={{ fontFamily: 'var(--font-num)' }}
           placeholder={'Date,Payee,Memo,Outflow,Inflow\n2026-08-01,Grocer,,42.10,'}
           value={text}
           onChange={(e) => loadText(e.target.value)}

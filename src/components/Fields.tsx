@@ -152,9 +152,16 @@ export const AmountInput = forwardRef<
       value={display}
       autoFocus={autoFocus}
       onFocus={(e) => {
+        const field = e.currentTarget
         setEditing(true)
         setText(value === 0 ? '' : formatMoney(value, fmt, { noSymbol: true }))
-        if (selectOnFocus) requestAnimationFrame(() => e.target.select())
+        if (selectOnFocus) requestAnimationFrame(() => field.select())
+        // The app shell is pinned to the viewport, so the browser will not
+        // scroll the page to lift a field clear of the on-screen keyboard.
+        // Nudge the surrounding scroller once the keyboard has animated in.
+        if (window.matchMedia('(pointer: coarse)').matches) {
+          window.setTimeout(() => field.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+        }
       }}
       onChange={(e) => {
         const next = e.target.value

@@ -1,12 +1,21 @@
-import { chromium } from 'playwright'
+import { chromium, devices } from 'playwright'
 
 export const BASE_URL = process.env.ENAB_URL ?? 'http://localhost:4173/'
 /** Set when Chromium lives outside Playwright's default download location. */
 const EXECUTABLE = process.env.PLAYWRIGHT_CHROMIUM
 
-export async function launch({ width = 1280, height = 950 } = {}) {
+/**
+ * @param {{ width?: number, height?: number, device?: string }} [options]
+ *   Pass `device` to emulate a real phone — touch and a coarse pointer, which
+ *   several styles key off.
+ */
+export async function launch({ width = 1280, height = 950, device } = {}) {
   const browser = await chromium.launch(EXECUTABLE ? { executablePath: EXECUTABLE } : {})
-  const context = await browser.newContext({ viewport: { width, height }, acceptDownloads: true })
+  const context = await browser.newContext(
+    device
+      ? { ...devices[device], acceptDownloads: true }
+      : { viewport: { width, height }, acceptDownloads: true },
+  )
   const page = await context.newPage()
 
   const errors = []

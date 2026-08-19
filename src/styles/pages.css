@@ -202,14 +202,18 @@
 
 .assign-input {
   width: 100%;
-  padding: 5px 8px;
+  padding: 5px 6px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
   background: transparent;
   font-family: var(--font-num);
-  font-size: 14px;
+  /* 16px so tapping it never zooms the page in on iOS. */
+  font-size: 16px;
   text-align: right;
   color: var(--text);
+}
+@media (min-width: 900px) and (pointer: fine) {
+  .assign-input { padding: 5px 8px; font-size: 14px; }
 }
 .assign-input:hover { border-color: var(--border-strong); background: var(--surface); }
 .assign-input:focus {
@@ -244,7 +248,7 @@
   .budget-head,
   .cat-row,
   .group-row {
-    grid-template-columns: minmax(0, 1fr) 92px 104px;
+    grid-template-columns: minmax(0, 1fr) 100px 104px;
   }
   .budget-head .col-activity,
   .cat-row .col-activity,

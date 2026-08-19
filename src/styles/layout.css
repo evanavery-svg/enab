@@ -4,7 +4,9 @@
 
 .app {
   display: flex;
-  height: 100dvh;
+  /* The body is already pinned to the viewport, so a plain 100% is stable —
+     unlike dvh, which shifts while mobile browser chrome animates. */
+  height: 100%;
   overflow: hidden;
 }
 
@@ -122,9 +124,12 @@
 
 .content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  /* Keep a rubber-band at the end of this list from scrolling anything else. */
+  overscroll-behavior: contain;
 }
 .content-pad { padding: 16px; }
 .content-narrow { max-width: 780px; margin: 0 auto; }

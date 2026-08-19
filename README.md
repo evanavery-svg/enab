@@ -187,7 +187,7 @@ and restore, and Fresh Start.
 ## Tests
 
 ```bash
-npm test           # unit tests: budget engine, targets, money parsing
+npm test           # unit tests: budget engine, targets, analysis, money parsing
 npm run test:e2e   # browser tests, needs `npm run preview` running
 ```
 
@@ -196,7 +196,10 @@ rollover, the two kinds of overspending, credit card payment categories,
 transfers, splits, target maths, recurrence, amount parsing, and the analysis
 behind Auto-Budget. The end-to-end suites drive the real UI: budgeting a month,
 charging a card, reconciling, splitting, scheduling, a backup/restore round
-trip, and importing a CSV to plan from.
+trip, and importing a CSV to plan from. A fourth suite covers phone behaviour
+that is easy to break and hard to spot: the app shell staying pinned while a
+list scrolls, and no form field dipping under the size that makes iOS Safari
+zoom the page in.
 
 If Chromium lives somewhere unusual, point at it:
 

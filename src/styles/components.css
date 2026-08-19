@@ -63,6 +63,12 @@
 }
 .field .hint { display: block; margin-top: 5px; font-size: 12.5px; color: var(--text-dim); }
 
+/*
+ * 16px is not a style choice: iOS Safari zooms the page in whenever a focused
+ * field is smaller than that, and does not zoom back out. Every focusable
+ * control therefore starts at 16px, and only a real desktop pointer gets the
+ * denser sizes below.
+ */
 .input,
 .select,
 .textarea {
@@ -72,7 +78,7 @@
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   transition: border-color 0.12s ease, box-shadow 0.12s ease;
 }
 .input:focus,
@@ -375,4 +381,14 @@ input.toggle {
   font-size: 11.5px;
   color: var(--text-faint);
   font-variant-numeric: tabular-nums;
+}
+
+
+/* Denser form controls once we know there is a mouse and room for them. */
+@media (min-width: 900px) and (pointer: fine) {
+  .input,
+  .select,
+  .textarea {
+    font-size: 15px;
+  }
 }
