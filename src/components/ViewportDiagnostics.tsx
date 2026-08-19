@@ -24,12 +24,19 @@ export function ViewportDiagnostics() {
   if (!report) return null
 
   const gap = report.gapBelowNav
-  const healthy = gap !== null && Math.abs(gap) <= 1
+  // Two separate things can go wrong, and the first one hid the second for a
+  // long time: the bar can sit above the bottom of the *viewport*, or the
+  // viewport itself can fall short of the *screen*. Only checking the former
+  // reported "flush" while a band of background sat under the tab bar.
+  const barFlush = gap !== null && Math.abs(gap) <= 1
+  const viewportFillsScreen = report.screenShortfall <= 2
+  const healthy = barFlush && viewportFillsScreen
 
   const rows: [string, string][] = [
     ['Version', `v${APP_VERSION}`],
     ['Display mode', report.mode],
     ['Gap below tab bar', gap === null ? '—' : `${gap}px`],
+    ['Screen minus viewport', `${report.screenShortfall}px`],
     ['Tab bar position', report.navPosition ?? '—'],
     ['Tab bar bottom edge', report.navBottom === null ? '—' : `${report.navBottom}px`],
     ['window.innerHeight', `${report.innerHeight}px`],
@@ -48,9 +55,11 @@ export function ViewportDiagnostics() {
         <span>
           {gap === null
             ? 'Tab bar not on screen (desktop layout)'
-            : healthy
-              ? 'Tab bar is flush with the bottom of the screen'
-              : `Tab bar is ${gap}px above the bottom of the screen`}
+            : !viewportFillsScreen
+              ? `The viewport is ${report.screenShortfall}px shorter than the screen — iOS is not giving the app the full height`
+              : barFlush
+                ? 'Tab bar is flush with the bottom of the screen'
+                : `Tab bar is ${gap}px above the bottom of the viewport`}
         </span>
       </div>
 

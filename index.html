@@ -17,7 +17,19 @@
     <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#182027" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!--
+      Deliberately `default`, not `black-translucent`.
+
+      With `black-translucent` plus `viewport-fit=cover`, iOS sizes the
+      standalone web view as (screen height - status bar) but anchors it at
+      y=0, so the shortfall lands at the *bottom* of the screen: measured on an
+      iPhone 16 Pro, screen.height 874px against a 812px viewport, leaving a
+      62px band of background under the tab bar that no amount of CSS inside
+      the viewport can reach. `default` starts the viewport below the status
+      bar and runs it to the true bottom edge instead. The theme-color tags
+      above tint the status bar to match the header, so nothing looks different.
+    -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="ENAB" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="format-detection" content="telephone=no" />

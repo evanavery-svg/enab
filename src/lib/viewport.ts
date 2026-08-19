@@ -67,6 +67,13 @@ export interface ViewportReport {
   safeAreaBottom: string
   safeAreaTop: string
   devicePixelRatio: number
+  /**
+   * Screen height minus viewport height. In a standalone app this should be
+   * ~0: anything larger means iOS handed the web view a viewport that does not
+   * reach the bottom of the screen, and no CSS inside it can fill the
+   * remainder. This is the measurement that exposed the black-translucent bug.
+   */
+  screenShortfall: number
 }
 
 /**
@@ -96,6 +103,7 @@ export function readViewport(): ViewportReport {
     safeAreaBottom: styles.getPropertyValue('--probe-safe-bottom').trim() || 'n/a',
     safeAreaTop: styles.getPropertyValue('--probe-safe-top').trim() || 'n/a',
     devicePixelRatio: window.devicePixelRatio,
+    screenShortfall: Math.round((window.screen?.height ?? 0) - window.innerHeight),
   }
 }
 
