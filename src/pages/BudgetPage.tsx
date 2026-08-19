@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Icon'
 import { MonthNav } from '../components/MonthNav'
 import { MenuButton, Popover } from '../components/Menu'
@@ -39,6 +40,7 @@ export default function BudgetPage() {
   const { groups, categories, budget, money, accounts } = data
   const month = useUi((s) => s.month)
   const openDetail = useUi((s) => s.openCategoryDetail)
+  const navigate = useNavigate()
 
   const [showHidden, setShowHidden] = useState(false)
   const [addingGroup, setAddingGroup] = useState(false)
@@ -116,6 +118,10 @@ export default function BudgetPage() {
         >
           {(close) => (
             <>
+              <button onClick={() => navigate('/plan')}>
+                <Icon name="target" size={15} /> Plan from my history…
+              </button>
+              <div className="menu-sep" />
               <div className="menu-label">Assign to every category</div>
               {QUICK_ACTIONS.map((action) => (
                 <button

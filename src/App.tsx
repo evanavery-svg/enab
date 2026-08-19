@@ -13,6 +13,7 @@ import BudgetPage from './pages/BudgetPage'
 import AccountsPage from './pages/AccountsPage'
 import RegisterPage from './pages/RegisterPage'
 import ReportsPage from './pages/ReportsPage'
+import PlanPage from './pages/PlanPage'
 import SettingsPage from './pages/SettingsPage'
 import PayeesPage from './pages/PayeesPage'
 import ScheduledPage from './pages/ScheduledPage'
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="/accounts" element={<AccountsPage />} />
           <Route path="/accounts/:accountId" element={<RegisterPage />} />
           <Route path="/reports" element={<ReportsPage />} />
+          <Route path="/plan" element={<PlanPage />} />
           <Route path="/payees" element={<PayeesPage />} />
           <Route path="/scheduled" element={<ScheduledPage />} />
           <Route path="/settings" element={<SettingsPage />} />

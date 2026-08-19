@@ -182,6 +182,11 @@
   .fab { display: none; }
 }
 
+/* A bulk action bar owns the bottom of the screen while it is up, and is the
+   action the user is in the middle of — the add button would only sit on top
+   of it. */
+.app:has(.bulk-bar) .fab { display: none; }
+
 /* ---------------- Drawer (right-side detail panel) ---------------- */
 
 .drawer-scrim {

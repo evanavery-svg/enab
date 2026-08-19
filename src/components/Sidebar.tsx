@@ -49,6 +49,10 @@ export function Sidebar() {
           <span>Budget</span>
           <span className={`nav-amount ${readyToAssign < 0 ? 'neg' : ''}`}>{money(readyToAssign)}</span>
         </NavLink>
+        <NavLink to="/plan" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+          <Icon name="target" />
+          <span>Auto-Budget</span>
+        </NavLink>
         <NavLink to="/reports" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
           <Icon name="chart" />
           <span>Reports</span>

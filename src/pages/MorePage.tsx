@@ -5,6 +5,7 @@ import { useData } from '../hooks/useData'
 import { updateSettings } from '../db/actions'
 
 const LINKS: { to: string; label: string; icon: IconName; blurb: string }[] = [
+  { to: '/plan', label: 'Auto-Budget', icon: 'target', blurb: 'Plan from your history and see your subscriptions' },
   { to: '/scheduled', label: 'Scheduled', icon: 'repeat', blurb: 'Recurring transactions and upcoming bills' },
   { to: '/payees', label: 'Payees', icon: 'users', blurb: 'Rename, merge and tidy up' },
   { to: '/settings', label: 'Settings', icon: 'settings', blurb: 'Currency, theme, backups and CSV import' },

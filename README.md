@@ -113,6 +113,35 @@ shows what you can actually afford to pay.
 accounts first. Income is a FIFO queue; every expense drains it from the oldest
 end. Past 30 days means this month's spending is coming from last month's income.
 
+## Auto-Budget
+
+Import a CSV of your history and ENAB will work out what to budget, from what
+you actually spent.
+
+**Finding what repeats.** Charges are grouped by payee and checked for a rhythm:
+the gaps between them, and how much the amount moves. Three occurrences is the
+floor — two dates make a line through any coincidence. A charge that lands on a
+schedule for about the same amount each time is a subscription; one that lands
+on a schedule for a different amount each time is a bill (your electricity);
+shopping at the same place most weeks is neither. Each is reported with its real
+cost per month and per year, whatever its actual cadence — a $60 quarterly
+charge is $20 a month. Subscriptions that stopped charging are listed
+separately, because those are the ones worth knowing you cancelled.
+
+**Proposing the plan.** Each category's suggestion comes from the *median* of
+past months rather than the average, so one holiday or one car repair doesn't
+permanently inflate it. Categories that only fire occasionally — gifts, car
+maintenance — are spread across the window instead, since their median is
+usually zero. Steady subscriptions set a floor: one you haven't cancelled will
+be charged whether or not last month happened to be quiet. Variable charges
+deliberately don't set a floor, because the historical median already counts
+them.
+
+Every suggested amount is editable, any category can be excluded, and the plan
+tells you whether it fits inside a typical month's income before you apply it.
+Applying assigns the amounts; optionally it also creates a monthly target for
+each category.
+
 ## Features
 
 **Budgeting** — monthly envelopes, Ready to Assign, move money between
@@ -148,6 +177,9 @@ adjustment transaction rather than a silent edit. Reconciled rows lock.
 over time, net worth, and Age of Money, over any range from three months to all
 time.
 
+**Auto-Budget** — import a CSV of past transactions and ENAB proposes a plan
+(see below), and lists the charges that repeat.
+
 **Everything else** — light/dark/system themes, currency and number formats,
 CSV import from bank exports with column matching, CSV export, full JSON backup
 and restore, and Fresh Start.
@@ -161,9 +193,10 @@ npm run test:e2e   # browser tests, needs `npm run preview` running
 
 The unit tests cover the parts where a mistake would quietly cost you money —
 rollover, the two kinds of overspending, credit card payment categories,
-transfers, splits, target maths, and amount parsing. The end-to-end suites drive
-the real UI: budgeting a month, charging a card, reconciling, splitting,
-scheduling, and a backup/restore round trip.
+transfers, splits, target maths, recurrence, amount parsing, and the analysis
+behind Auto-Budget. The end-to-end suites drive the real UI: budgeting a month,
+charging a card, reconciling, splitting, scheduling, a backup/restore round
+trip, and importing a CSV to plan from.
 
 If Chromium lives somewhere unusual, point at it:
 
@@ -175,7 +208,7 @@ PLAYWRIGHT_CHROMIUM=/path/to/chrome npm run test:e2e
 
 ```
 src/
-  budget/     the engine: envelope maths, targets, recurrence, age of money
+  budget/     the engine: envelope maths, targets, recurrence, analysis
   db/         Dexie schema, seed data, and every mutation
   components/ shared UI — modals, fields, charts, the transaction editor
   pages/      budget, accounts, register, reports, payees, scheduled, settings
