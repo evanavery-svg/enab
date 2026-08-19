@@ -68,9 +68,10 @@ regularly and keep the JSON somewhere safe.
 ### Versioning
 
 The patch number in `package.json` is bumped on every change, and the version
-shows in full at the bottom of the sidebar and the More tab. That is how you
-tell at a glance whether the installed app has actually picked up a new build:
-if the footer still reads the old number, the update has not landed yet.
+shows in full in the footer — at the bottom of the sidebar on desktop, and at
+the bottom of the Budget and More screens on a phone. That is how you tell at a
+glance whether the installed app has actually picked up a new build: if the
+footer still reads the old number, the update has not landed yet.
 
 ### Updates
 

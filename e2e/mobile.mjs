@@ -78,25 +78,22 @@ await step('the shell is exactly the height that is on screen', async () => {
   }
 })
 
-await step('the shell height is not a baked-in pixel value', async () => {
-  // A measured height frozen into a variable is what left a band of
-  // background under the tab bar: iOS misreports it while a standalone app is
-  // launching and never fires a resize to correct it. The height must come
-  // from a unit the engine re-evaluates, so it survives being wrong once.
-  const declared = await page.evaluate(() => {
-    const rules = [...document.styleSheets].flatMap((sheet) => {
-      try {
-        return [...sheet.cssRules]
-      } catch {
-        return []
-      }
-    })
-    const htmlRule = rules.find((r) => r.selectorText === 'html' && r.style?.height)
-    return htmlRule ? htmlRule.style.height : null
+await step('the shell is pinned to the viewport, not sized by a height unit', async () => {
+  // The band of background under the tab bar came from trusting a viewport
+  // *height* — `dvh` reads short in iOS standalone, a measured pixel value
+  // freezes a wrong launch-time reading. `.app` is pinned with
+  // position: fixed; inset: 0 instead, which fills the visible screen
+  // directly. Assert the mechanism so it cannot regress to a height unit.
+  const app = await page.evaluate(() => {
+    const el = document.querySelector('.app')
+    const cs = getComputedStyle(el)
+    const rect = el.getBoundingClientRect()
+    return { position: cs.position, top: rect.top, bottom: Math.round(rect.bottom) }
   })
-  if (!declared || !declared.includes('dvh')) {
-    throw new Error(`html height is declared as "${declared}" — expected a dynamic viewport unit`)
-  }
+  if (app.position !== 'fixed') throw new Error(`.app position is ${app.position}, expected fixed`)
+  if (Math.abs(app.top) > 1) throw new Error(`.app top is ${app.top}, expected 0`)
+  const gap = await page.evaluate(() => Math.round(window.innerHeight - document.querySelector('.app').getBoundingClientRect().bottom))
+  if (Math.abs(gap) > 1) throw new Error(`.app bottom is ${gap}px off the bottom of the screen`)
 })
 
 await step('the tab bar sits flush against the bottom of the screen', async () => {

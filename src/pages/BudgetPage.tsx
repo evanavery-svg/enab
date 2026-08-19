@@ -8,6 +8,7 @@ import { MoveMoneyModal } from '../components/MoveMoneyModal'
 import { AmountInput } from '../components/Fields'
 import { Modal } from '../components/Modal'
 import { AccountFormModal } from '../components/AccountForm'
+import { AppFooter } from '../components/AppFooter'
 import { useData } from '../hooks/useData'
 import { toast, useUi } from '../state/ui'
 import {
@@ -223,6 +224,8 @@ export default function BudgetPage() {
               </div>
             </div>
           )}
+
+          <AppFooter />
         </div>
       </div>
 

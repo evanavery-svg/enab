@@ -3,9 +3,16 @@
  * ------------------------------------------------------------------ */
 
 .app {
+  /*
+   * Pinned to the viewport rather than sized by a height unit. In an installed
+   * app there is no URL bar, so this is exactly the screen and the tab bar
+   * lands on its true bottom edge; in a browser tab it tracks the visible area
+   * as the chrome collapses. Modals, drawers, toasts and the FAB are portaled
+   * to <body>, so taking `.app` out of flow does not trap them.
+   */
+  position: fixed;
+  inset: 0;
   display: flex;
-  /* Inherits the viewport height from html/body. */
-  height: 100%;
   overflow: hidden;
 }
 
