@@ -4,6 +4,8 @@ import { ConfirmDialog } from '../components/Modal'
 import { CsvImportModal } from '../components/CsvImportModal'
 import { InstallGuide } from '../components/InstallGuide'
 import { isInstalled } from '../lib/install'
+import { checkForAppUpdate } from '../pwa'
+import { APP_VERSION } from '../lib/version'
 import { SettingsRow } from '../components/Fields'
 import { useData } from '../hooks/useData'
 import { toast } from '../state/ui'
@@ -38,6 +40,28 @@ export default function SettingsPage() {
   const [importingCsv, setImportingCsv] = useState(false)
   const [confirmFreshStart, setConfirmFreshStart] = useState(false)
   const [showInstallGuide, setShowInstallGuide] = useState(false)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+
+  async function checkUpdates() {
+    setCheckingUpdate(true)
+    try {
+      const outcome = await checkForAppUpdate()
+      if (outcome === 'updating') {
+        toast('New version found — updating now…')
+        // The service worker reloads the page once it takes over; if it hasn't
+        // within a few seconds, reload anyway so the user is never left waiting.
+        setTimeout(() => window.location.reload(), 4000)
+      } else if (outcome === 'up-to-date') {
+        toast(`You're on the latest version (${APP_VERSION})`)
+      } else if (outcome === 'offline') {
+        toast('Could not check — you appear to be offline', { tone: 'danger' })
+      } else {
+        toast('Updates are managed by your browser here')
+      }
+    } finally {
+      setCheckingUpdate(false)
+    }
+  }
   const [pendingRestore, setPendingRestore] = useState<string | null>(null)
 
   const set = (patch: Partial<Settings>) => updateSettings(patch)
@@ -171,6 +195,15 @@ export default function SettingsPage() {
               >
                 <button className="btn btn-sm" onClick={() => setShowInstallGuide(true)}>
                   <Icon name="download" size={15} /> Show me how
+                </button>
+              </SettingsRow>
+              <SettingsRow
+                label={`Version ${APP_VERSION}`}
+                hint="Force a check for the newest build. Handy when an installed app is slow to update itself."
+                compact
+              >
+                <button className="btn btn-sm" onClick={checkUpdates} disabled={checkingUpdate}>
+                  <Icon name="refresh" size={15} /> {checkingUpdate ? 'Checking…' : 'Check for updates'}
                 </button>
               </SettingsRow>
             </div>

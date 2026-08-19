@@ -84,6 +84,12 @@ written to the database.
 
 So the update flow is just: upload a new `dist/`, then open the app.
 
+On iOS an installed app can be slow to notice a new build — the system is
+reluctant to re-fetch the service worker on resume. Two ways to force it:
+**Settings → Check for updates** inside the app, or fully quit the app (swipe
+it away in the app switcher) and reopen. The version in the footer confirms
+which build you are on.
+
 ## How the budget works
 
 The rules are the ones that make envelope budgeting actually add up.
