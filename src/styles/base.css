@@ -5,21 +5,22 @@
 }
 
 /*
- * The document itself never scrolls: html and body are locked to the viewport
- * with nothing overflowing them. The actual sizing of the shell lives on
- * `.app`, pinned with `position: fixed; inset: 0` (see layout.css) — that
- * fills the *visible* screen directly, in a browser tab and an installed app
- * alike, without depending on how iOS resolves a viewport height unit.
+ * The shell is exactly the height that is on screen, and the document itself
+ * never scrolls. The height comes from `--app-height`, which JS keeps equal to
+ * the real visible height (see lib/viewport.ts) — re-measured after launch and
+ * on the first interaction, because iOS reports a too-short viewport for the
+ * first moment of a standalone launch and does not always fire a resize when
+ * it settles. `100dvh` is the fallback for the first paint before JS runs.
  *
- * History, so this does not get "simplified" back into a bug: `height: 100vh`
- * is the URL-bar-hidden height (too tall, the page scrolls); `100dvh` is
- * correct in Safari but iOS standalone reports it short, leaving a band of
- * background under the tab bar; a JS-measured pixel height freezes whatever
- * wrong value iOS gives during a standalone launch. Pinning `.app` sidesteps
- * all three.
+ * History, so this does not get "simplified" back into a bug: `100vh` is the
+ * URL-bar-hidden height (too tall, page scrolls); `100dvh` alone comes up
+ * short on an iOS standalone launch; `position: fixed; inset: 0` fills the
+ * viewport but does not re-measure until a reflow, so it sits short until the
+ * first tap. Measuring innerHeight and re-applying it is the reliable path.
  */
 html {
-  height: 100%;
+  height: 100dvh;
+  height: var(--app-height, 100dvh);
   overflow: hidden;
   /* Stop iOS reflowing text when the device is rotated. */
   -webkit-text-size-adjust: 100%;

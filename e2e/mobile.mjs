@@ -78,22 +78,24 @@ await step('the shell is exactly the height that is on screen', async () => {
   }
 })
 
-await step('the shell is pinned to the viewport, not sized by a height unit', async () => {
-  // The band of background under the tab bar came from trusting a viewport
-  // *height* — `dvh` reads short in iOS standalone, a measured pixel value
-  // freezes a wrong launch-time reading. `.app` is pinned with
-  // position: fixed; inset: 0 instead, which fills the visible screen
-  // directly. Assert the mechanism so it cannot regress to a height unit.
-  const app = await page.evaluate(() => {
-    const el = document.querySelector('.app')
-    const cs = getComputedStyle(el)
-    const rect = el.getBoundingClientRect()
-    return { position: cs.position, top: rect.top, bottom: Math.round(rect.bottom) }
-  })
-  if (app.position !== 'fixed') throw new Error(`.app position is ${app.position}, expected fixed`)
-  if (Math.abs(app.top) > 1) throw new Error(`.app top is ${app.top}, expected 0`)
-  const gap = await page.evaluate(() => Math.round(window.innerHeight - document.querySelector('.app').getBoundingClientRect().bottom))
-  if (Math.abs(gap) > 1) throw new Error(`.app bottom is ${gap}px off the bottom of the screen`)
+await step('the shell height tracks the measured viewport', async () => {
+  // iOS standalone reports a too-short viewport for the first moment of a
+  // launch, so the height is measured from window.innerHeight into
+  // --app-height and re-applied after the settle (see lib/viewport.ts). Assert
+  // the variable is set and the shell matches the viewport, so a regression to
+  // a bare height unit (which came up short on device) is caught.
+  const state = await page.evaluate(() => ({
+    variable: getComputedStyle(document.documentElement).getPropertyValue('--app-height').trim(),
+    innerHeight: window.innerHeight,
+    appHeight: document.querySelector('.app').getBoundingClientRect().height,
+  }))
+  if (!/px$/.test(state.variable)) throw new Error(`--app-height is "${state.variable}", expected a px value`)
+  if (Math.abs(parseFloat(state.variable) - state.innerHeight) > 1) {
+    throw new Error(`--app-height ${state.variable} != viewport ${state.innerHeight}px`)
+  }
+  if (Math.abs(state.appHeight - state.innerHeight) > 1) {
+    throw new Error(`shell is ${state.appHeight}px inside a ${state.innerHeight}px viewport`)
+  }
 })
 
 await step('the tab bar sits flush against the bottom of the screen', async () => {
