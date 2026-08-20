@@ -11,6 +11,7 @@ export function Sidebar() {
   const { settings, accounts, balances, money, budget } = useData()
   const month = useUi((s) => s.month)
   const openTxnModal = useUi((s) => s.openTxnModal)
+  const closeNav = useUi((s) => s.closeNav)
   const [addingAccount, setAddingAccount] = useState(false)
 
   const readyToAssign = budget.summaries.get(month)?.readyToAssign ?? 0
@@ -37,7 +38,10 @@ export function Sidebar() {
         <button
           className="btn btn-primary btn-block"
           style={{ marginTop: 10 }}
-          onClick={() => openTxnModal()}
+          onClick={() => {
+            closeNav()
+            openTxnModal()
+          }}
         >
           <Icon name="plus" size={16} /> Add Transaction
         </button>
@@ -88,7 +92,7 @@ export function Sidebar() {
           ),
         )}
 
-        <button className="nav-link" style={{ width: '100%', border: 0, background: 'none', marginTop: 10 }} onClick={() => setAddingAccount(true)}>
+        <button className="nav-link" style={{ width: '100%', border: 0, background: 'none', marginTop: 10 }} onClick={() => { closeNav(); setAddingAccount(true) }}>
           <Icon name="plus" />
           <span>Add Account</span>
         </button>

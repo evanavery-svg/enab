@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Icon'
 import { MonthNav } from '../components/MonthNav'
+import { NavMenuButton } from '../components/NavMenuButton'
 import { MenuButton, Popover } from '../components/Menu'
 import { ConfirmDialog } from '../components/Modal'
 import { MoveMoneyModal } from '../components/MoveMoneyModal'
@@ -108,6 +109,7 @@ export default function BudgetPage() {
   return (
     <>
       <header className="topbar">
+        <NavMenuButton />
         <MonthNav />
         <span className="spacer" />
         <button
@@ -121,7 +123,7 @@ export default function BudgetPage() {
         <MenuButton
           label={
             <>
-              <Icon name="target" size={15} /> Auto-Assign
+              <Icon name="target" size={15} /> <span className="hide-phone">Auto-Assign</span>
             </>
           }
           align="end"

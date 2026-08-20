@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Icon } from '../components/Icon'
+import { NavMenuButton } from '../components/NavMenuButton'
 import { ConfirmDialog, Modal } from '../components/Modal'
 import { Field } from '../components/Fields'
 import { useData } from '../hooks/useData'
@@ -42,6 +43,7 @@ export default function PayeesPage() {
   return (
     <>
       <header className="topbar">
+        <NavMenuButton />
         <h1>Payees</h1>
         <span className="spacer" />
         <span className="dim" style={{ fontSize: 13 }}>

@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { NavMenuButton } from '../components/NavMenuButton'
 import { MenuButton } from '../components/Menu'
 import { ConfirmDialog } from '../components/Modal'
 import { AccountFormModal } from '../components/AccountForm'
@@ -116,6 +117,7 @@ export default function RegisterPage() {
     return (
       <>
         <header className="topbar">
+          <NavMenuButton />
           <h1>Account</h1>
         </header>
         <div className="content">
@@ -173,6 +175,7 @@ export default function RegisterPage() {
   return (
     <>
       <header className="topbar">
+        <NavMenuButton />
         <button className="icon-btn" onClick={() => navigate('/accounts')} aria-label="Back">
           <Icon name="chevronLeft" />
         </button>

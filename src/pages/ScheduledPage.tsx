@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Icon } from '../components/Icon'
+import { NavMenuButton } from '../components/NavMenuButton'
 import { ConfirmDialog } from '../components/Modal'
 import { useData } from '../hooks/useData'
 import { toast, useUi } from '../state/ui'
@@ -33,6 +34,7 @@ export default function ScheduledPage() {
   return (
     <>
       <header className="topbar">
+        <NavMenuButton />
         <h1>Scheduled</h1>
         <span className="spacer" />
         <button className="btn btn-sm btn-primary" onClick={() => openTxn()}>

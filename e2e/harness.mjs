@@ -57,44 +57,43 @@ export function finish(errors) {
   console.log('\nAll checks passed')
 }
 
+/** True on a phone layout, where the sidebar is an off-canvas drawer. */
+async function onPhone(page) {
+  return page.locator('.nav-menu-btn').isVisible().catch(() => false)
+}
+
+/** Open the navigation drawer on a phone (no-op on desktop). */
+async function openDrawer(page) {
+  if (await onPhone(page)) {
+    await page.locator('.nav-menu-btn').click()
+    await page.waitForTimeout(320)
+  }
+}
+
 /** Works at both desktop and phone widths. */
 export async function addTransaction(page) {
-  const sidebarAdd = page.locator('.sidebar').getByRole('button', { name: 'Add Transaction' })
-  if (await sidebarAdd.isVisible().catch(() => false)) {
-    await sidebarAdd.click()
-    return
-  }
-  // Phone: the Budget screen has a top-bar quick-add; from anywhere else the
-  // "More" sheet carries a New Transaction button.
+  // The Budget screen carries a one-tap quick-add in its top bar.
   const quick = page.locator('.topbar .add-txn')
   if (await quick.isVisible().catch(() => false)) {
     await quick.click()
     return
   }
-  await page.locator('.bottom-nav-item', { hasText: 'More' }).click()
-  await page.waitForTimeout(300)
-  await page.locator('.navsheet-add').click()
+  // Otherwise use Add Transaction in the sidebar — docked on desktop, revealed
+  // by the drawer on a phone.
+  await openDrawer(page)
+  await page.locator('.sidebar').getByRole('button', { name: 'Add Transaction' }).click()
 }
 
 /**
- * Navigate to a section by its label, using the bottom tab bar on a phone
- * (primary tabs directly, everything else via the "More" sheet) and the
- * sidebar on desktop.
+ * Navigate to a section by its label, using the sidebar — docked on desktop,
+ * opened as a drawer on a phone.
  */
 export async function gotoSection(page, label) {
-  const bar = page.locator('.bottom-nav')
-  if (await bar.isVisible().catch(() => false)) {
-    const tab = bar.locator('.bottom-nav-item', { hasText: new RegExp('^' + label + '$') })
-    if (await tab.count()) {
-      await tab.first().click()
-    } else {
-      await bar.locator('.bottom-nav-item', { hasText: 'More' }).click()
-      await page.waitForTimeout(300)
-      await page.locator('.navsheet-item', { hasText: new RegExp('^' + label) }).click()
-    }
-  } else {
-    await page.locator('.sidebar').getByRole('link', { name: new RegExp('^' + label) }).first().click()
-  }
+  await openDrawer(page)
+  // The accounts link reads "All Accounts"; everything else matches from the
+  // start of its label.
+  const rx = label === 'Accounts' ? /All Accounts/ : new RegExp('^' + label)
+  await page.locator('.sidebar').getByRole('link', { name: rx }).first().click()
   await page.waitForTimeout(500)
 }
 

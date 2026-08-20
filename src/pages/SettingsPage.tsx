@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Icon } from '../components/Icon'
+import { NavMenuButton } from '../components/NavMenuButton'
 import { ConfirmDialog } from '../components/Modal'
 import { CsvImportModal } from '../components/CsvImportModal'
 import { InstallGuide } from '../components/InstallGuide'
@@ -99,6 +100,7 @@ export default function SettingsPage() {
   return (
     <>
       <header className="topbar">
+        <NavMenuButton />
         <h1>Settings</h1>
       </header>
 

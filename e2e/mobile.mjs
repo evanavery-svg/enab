@@ -1,7 +1,7 @@
 /**
- * Phone behaviour: the flush bottom tab bar sitting on the true bottom edge,
- * the header and bar staying put while the list scrolls, and form fields never
- * dipping under the 16px that makes iOS Safari zoom the page in.
+ * Phone behaviour: the slide-in navigation drawer, a header pinned to the true
+ * top edge, content reaching the true bottom edge with no bottom chrome, and
+ * form fields never dipping under the 16px that makes iOS Safari zoom the page.
  *
  *   npm run build && npm run preview   # in one shell
  *   npm run test:e2e                   # in another
@@ -35,24 +35,20 @@ await step('set up an account', async () => {
   await gotoSection(page, 'Budget')
 })
 
-await step('the tab bar sits flush on the true bottom edge', async () => {
-  const bar = await page.evaluate(() => {
-    const el = document.querySelector('.bottom-nav')
-    if (!el) return null
-    const r = el.getBoundingClientRect()
+await step('there is no bottom chrome — content reaches the true bottom edge', async () => {
+  const shell = await page.evaluate(() => {
+    const content = document.querySelector('.content')
+    const r = content.getBoundingClientRect()
     return {
-      visible: getComputedStyle(el).display !== 'none',
-      // The whole point of the rebuild: the bar's bottom edge lands on the
-      // viewport's bottom edge, with no band of dead space beneath it.
-      bottomGap: Math.round(window.innerHeight - r.bottom),
-      spansWidth: Math.round(r.width) >= Math.round(window.innerWidth) - 1,
-      atBottomHalf: r.top > window.innerHeight / 2,
+      hasBottomBar: !!document.querySelector('.bottom-nav'),
+      // The scroll area runs all the way to the bottom of the viewport, so
+      // nothing hangs off a wrongly-measured bottom edge.
+      contentBottomGap: Math.round(window.innerHeight - r.bottom),
     }
   })
-  if (!bar || !bar.visible) throw new Error('the bottom tab bar is not visible on a phone')
-  if (Math.abs(bar.bottomGap) > 2) throw new Error(`the bar is ${bar.bottomGap}px off the bottom edge`)
-  if (!bar.spansWidth) throw new Error('the bar does not span the full width')
-  if (!bar.atBottomHalf) throw new Error('the bar is not at the bottom of the screen')
+  if (shell.hasBottomBar) throw new Error('a bottom bar is still present')
+  if (Math.abs(shell.contentBottomGap) > 2)
+    throw new Error(`content stops ${shell.contentBottomGap}px short of the bottom edge`)
 })
 
 await step('the header sits on the true top edge', async () => {
@@ -80,48 +76,52 @@ await step('the page itself cannot scroll', async () => {
   if (scrollable.documentScrollable) throw new Error('the document grew scrollable')
 })
 
-await step('the header and tab bar hold still while the list scrolls', async () => {
+await step('the header holds still while the list scrolls', async () => {
   const topBefore = await page.locator('.topbar').boundingBox()
-  const barBefore = await page.locator('.bottom-nav').boundingBox()
   await page.locator('.content').evaluate((el) => el.scrollTo(0, 1400))
   await page.waitForTimeout(400)
   const scrolled = await page.locator('.content').evaluate((el) => el.scrollTop)
   if (scrolled < 100) throw new Error(`the list barely scrolled (${scrolled}px)`)
   const topAfter = await page.locator('.topbar').boundingBox()
-  const barAfter = await page.locator('.bottom-nav').boundingBox()
   if (topBefore.y !== topAfter.y) throw new Error(`header moved ${topBefore.y} -> ${topAfter.y}`)
-  if (barBefore.y !== barAfter.y) throw new Error(`tab bar moved ${barBefore.y} -> ${barAfter.y}`)
 })
 
-await step('the bar carries every primary tab', async () => {
-  const items = await page.locator('.bottom-nav-item').allInnerTexts()
-  for (const expected of ['Budget', 'Accounts', 'Auto-Budget', 'Reports', 'More']) {
-    if (!items.some((t) => t.includes(expected))) throw new Error(`tab bar missing ${expected}`)
+await step('the menu button reveals the drawer, off-screen until opened', async () => {
+  const closed = await page.locator('.sidebar').boundingBox()
+  if (closed.x > -100) throw new Error(`the drawer is not tucked off-screen (x=${closed.x})`)
+  await page.locator('.nav-menu-btn').click()
+  await page.waitForTimeout(360)
+  const open = await page.locator('.sidebar').boundingBox()
+  if (Math.abs(open.x) > 2) throw new Error(`the open drawer is not flush to the left (x=${open.x})`)
+})
+
+await step('the drawer carries every section', async () => {
+  const sidebar = page.locator('.sidebar')
+  for (const label of ['Budget', 'Auto-Budget', 'Reports', 'All Accounts', 'Scheduled', 'Payees', 'Settings']) {
+    if (!(await sidebar.getByRole('link', { name: new RegExp(label) }).count()))
+      throw new Error(`drawer missing ${label}`)
   }
-  // Budget is the current section, so its tab is marked.
-  const active = await page.locator('.bottom-nav-item.active').innerText()
-  if (!active.includes('Budget')) throw new Error(`active tab was "${active}", expected Budget`)
+  if (!(await sidebar.getByRole('button', { name: 'Add Transaction' }).isVisible()))
+    throw new Error('drawer missing Add Transaction')
 })
 
-await step('tapping a tab changes the page', async () => {
-  await page.locator('.bottom-nav-item', { hasText: 'Accounts' }).click()
+await step('a drawer link navigates and closes the drawer', async () => {
+  await page.locator('.sidebar').getByRole('link', { name: /Reports/ }).first().click()
   await page.waitForTimeout(600)
-  const active = await page.locator('.bottom-nav-item.active').innerText()
-  if (!active.includes('Accounts')) throw new Error(`active tab was "${active}" after navigating`)
+  if ((await page.locator('.topbar h1').innerText()) !== 'Reports')
+    throw new Error('did not navigate to Reports')
+  const navOpen = await page.evaluate(() => document.querySelector('.app').classList.contains('nav-open'))
+  if (navOpen) throw new Error('the drawer stayed open after navigating')
 })
 
-await step('the More tab opens the overflow sheet', async () => {
-  await page.locator('.bottom-nav-item', { hasText: 'More' }).click()
-  await page.waitForTimeout(400)
-  if (!(await page.locator('.navsheet').isVisible())) throw new Error('the More sheet did not open')
-  const items = await page.locator('.navsheet-item').allInnerTexts()
-  for (const expected of ['Scheduled', 'Payees', 'Settings']) {
-    if (!items.some((t) => t.includes(expected))) throw new Error(`More sheet missing ${expected}`)
-  }
-  if (!(await page.locator('.navsheet-add').isVisible())) throw new Error('New Transaction missing from the More sheet')
-  // Close it again.
-  await page.locator('.navsheet-scrim').click({ position: { x: 10, y: 10 } })
-  await page.waitForTimeout(300)
+await step('the scrim closes the drawer', async () => {
+  await page.locator('.nav-menu-btn').click()
+  await page.waitForTimeout(320)
+  if (!(await page.locator('.nav-scrim').isVisible())) throw new Error('scrim did not appear')
+  await page.locator('.nav-scrim').click({ position: { x: 340, y: 300 } })
+  await page.waitForTimeout(320)
+  const navOpen = await page.evaluate(() => document.querySelector('.app').classList.contains('nav-open'))
+  if (navOpen) throw new Error('tapping the scrim did not close the drawer')
 })
 
 await step('adding a transaction opens the sheet with no zoom-triggering field', async () => {

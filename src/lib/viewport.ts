@@ -117,7 +117,9 @@ export interface ViewportReport {
  * diagnosed from a single screenshot rather than another round of guessing.
  */
 export function readViewport(): ViewportReport {
-  const nav = document.querySelector('.bottom-nav') as HTMLElement | null
+  // There is no bottom bar any more; the meaningful "does the layout reach the
+  // bottom edge" measurement is now the scroll area's bottom.
+  const nav = document.querySelector('.content') as HTMLElement | null
   const navRect = nav?.getBoundingClientRect() ?? null
   const styles = getComputedStyle(document.documentElement)
 

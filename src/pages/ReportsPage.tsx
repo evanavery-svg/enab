@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Icon } from '../components/Icon'
+import { NavMenuButton } from '../components/NavMenuButton'
 import { BarChart, Legend, LineChart, Sparkline } from '../components/charts'
 import { useData } from '../hooks/useData'
 import { useUi } from '../state/ui'
@@ -141,6 +142,7 @@ export default function ReportsPage() {
   return (
     <>
       <header className="topbar">
+        <NavMenuButton />
         <h1>Reports</h1>
         <span className="spacer" />
         <select className="select" style={{ width: 'auto' }} value={range} onChange={(e) => setRange(e.target.value as RangeKey)}>

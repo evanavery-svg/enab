@@ -140,148 +140,59 @@
 .content-pad { padding: 16px; }
 .content-narrow { max-width: 780px; margin: 0 auto; }
 
-/* ---------------- Bottom tab bar (mobile) ---------------- */
+/* ---------------- Navigation (mobile drawer) ---------------- */
 
 /*
- * A flush tab bar that sits on the screen's true bottom edge. It is a plain
- * flex child at the end of the `.app` column — nothing position:fixed — so in
- * an iOS standalone PWA it lands exactly on the bottom instead of floating
- * above a band of dead space. The bar's fill runs all the way down; its
- * padding-bottom carries the home-indicator safe area, keeping the tappable
- * icons above it. On desktop the sidebar navigates and this is hidden.
+ * The hamburger lives at the leading edge of every page's top bar; it is
+ * shown only on phones, where the sidebar is off-canvas.
  */
-.bottom-nav {
+.nav-menu-btn { display: none; }
+
+/*
+ * The scrim behind the open drawer. It dims the page and closes the drawer on
+ * tap. Rendered only while the drawer is open, phones only.
+ */
+.nav-scrim {
   display: none;
-  flex: none;
-  align-items: stretch;
-  justify-content: space-around;
-  background: var(--surface);
-  border-top: 1px solid var(--border);
-  padding-bottom: env(safe-area-inset-bottom);
-}
-.bottom-nav-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 8px 2px 7px;
-  border: none;
-  background: transparent;
-  color: var(--text-faint);
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-}
-.bottom-nav-item .bn-ico {
-  display: grid;
-  place-items: center;
-  height: 26px;
-}
-.bottom-nav-item:hover { text-decoration: none; }
-.bottom-nav-item:active { color: var(--text); }
-.bottom-nav-item.active { color: var(--accent-ink); }
-
-/* ---------------- Bottom sheet (mobile "More" menu) ---------------- */
-
-.navsheet-scrim {
   position: fixed;
   inset: 0;
-  z-index: 65;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  padding: 0 10px calc(env(safe-area-inset-bottom) + 12px);
+  z-index: 59;
   background: var(--overlay);
   animation: fade-in 0.16s ease;
 }
-.navsheet {
-  width: 100%;
-  max-width: 460px;
-  padding: 8px 10px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-3);
-  animation: slide-up 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
-}
-.navsheet-grabber {
-  width: 38px;
-  height: 5px;
-  margin: 2px auto 10px;
-  border-radius: 999px;
-  background: var(--border-strong);
-}
-.navsheet-add {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  height: 50px;
-  margin-bottom: 8px;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: var(--accent-text);
-  font-size: 15.5px;
-  font-weight: 650;
-}
-.navsheet-add:active { filter: brightness(0.92); }
-
-.navsheet-list {
-  display: grid;
-  gap: 2px;
-}
-.navsheet-item {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  padding: 12px 12px;
-  border: none;
-  background: transparent;
-  color: var(--text);
-  border-radius: var(--radius);
-  text-align: left;
-  font-size: 16px;
-  font-weight: 500;
-}
-.navsheet-item:active { background: var(--surface-2); }
-.navsheet-item-icon {
-  display: grid;
-  place-items: center;
-  width: 30px;
-  color: var(--text-dim);
-  flex: none;
-}
-.navsheet-item-label { flex: 1; min-width: 0; }
-.navsheet-item.current { color: var(--accent-ink); font-weight: 650; }
-.navsheet-item.current .navsheet-item-icon { color: var(--accent); }
-.navsheet-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: var(--accent);
-  flex: none;
-}
 
 @media (max-width: 899px) {
-  .sidebar { display: none; }
-
   /*
-   * The `.app` column (100dvh) stacks three plain flex children: the header
-   * (flex:none), the scroll area (flex:1) and the tab bar (flex:none). Nothing
-   * is position:fixed, so the header sits on the true top edge and the tab bar
-   * on the true bottom edge, with the safe-area insets carried by the header's
-   * padding-top and the bar's padding-bottom.
+   * On a phone the app is a single 100dvh column: the page's header (a plain
+   * flex child) sits on the true top edge and its scroll area fills the rest.
+   * There is no bottom chrome at all, so nothing depends on the screen's true
+   * bottom edge — the measurement iOS reports wrong in a standalone app.
    */
   .app { flex-direction: column; }
-  .bottom-nav { display: flex; }
-  .content { padding-bottom: 10px; }
+  .nav-menu-btn { display: inline-flex; }
+
+  /*
+   * The sidebar becomes a slide-in drawer: an off-canvas overlay that the
+   * hamburger reveals. It is the same component that is docked on desktop, so
+   * there is one navigation surface for both.
+   */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 60;
+    width: min(300px, 84vw);
+    border-right: 1px solid var(--border);
+    box-shadow: var(--shadow-3);
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    padding-top: env(safe-area-inset-top);
+  }
+  .app.nav-open .sidebar { transform: translateX(0); }
+  .app.nav-open .nav-scrim { display: block; }
+  /* Keep the drawer's footer links clear of the home indicator. */
+  .sidebar-foot { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }
 }
 
 /* ---------------- Drawer (right-side detail panel) ---------------- */
@@ -340,6 +251,8 @@
   gap: 10px;
 }
 
-/* A bulk action bar takes over the bottom while the user is mid-action; hide
-   the tab bar so the two don't stack. */
-.app:has(.bulk-bar) .bottom-nav { display: none; }
+/* Utility: hide an element on phones (e.g. a button label that would crowd a
+   packed top bar, leaving the icon). */
+@media (max-width: 899px) {
+  .hide-phone { display: none; }
+}

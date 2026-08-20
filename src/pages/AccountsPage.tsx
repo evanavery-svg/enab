@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Icon } from '../components/Icon'
+import { NavMenuButton } from '../components/NavMenuButton'
 import { AccountFormModal } from '../components/AccountForm'
 import { useData } from '../hooks/useData'
 import { ACCOUNT_TYPE_LABELS } from '../db/actions'
@@ -33,6 +34,7 @@ export default function AccountsPage() {
   return (
     <>
       <header className="topbar">
+        <NavMenuButton />
         <h1>All Accounts</h1>
         <span className="spacer" />
         <button className="btn btn-sm btn-primary" onClick={() => setAdding(true)}>

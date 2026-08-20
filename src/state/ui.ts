@@ -15,6 +15,11 @@ interface UiState {
   setMonth: (m: MonthKey) => void
   stepMonth: (delta: number) => void
 
+  /** The slide-in navigation drawer (mobile only). */
+  navOpen: boolean
+  openNav: () => void
+  closeNav: () => void
+
   /** Category whose detail drawer is open. */
   detailCategoryId: Id | null
   openCategoryDetail: (id: Id | null) => void
@@ -39,6 +44,10 @@ export const useUi = create<UiState>((set, get) => ({
       month: `${String(Math.floor(total / 12)).padStart(4, '0')}-${String((total % 12) + 1).padStart(2, '0')}`,
     })
   },
+
+  navOpen: false,
+  openNav: () => set({ navOpen: true }),
+  closeNav: () => set({ navOpen: false }),
 
   detailCategoryId: null,
   openCategoryDetail: (detailCategoryId) => set({ detailCategoryId }),

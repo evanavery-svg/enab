@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Icon } from '../components/Icon'
+import { NavMenuButton } from '../components/NavMenuButton'
 import { AmountInput } from '../components/Fields'
 import { CsvImportModal } from '../components/CsvImportModal'
 import { useData } from '../hooks/useData'
@@ -128,6 +129,7 @@ export default function PlanPage() {
   return (
     <>
       <header className="topbar">
+        <NavMenuButton />
         <div style={{ flex: 1, minWidth: 0 }}>
           <h1>Auto-Budget</h1>
           <div className="subtitle">Planning {monthLabel(month)}</div>

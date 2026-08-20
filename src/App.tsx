@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, useLocation } from 'react-router-dom'
 import { Toasts } from './components/Toasts'
 import { Sidebar } from './components/Sidebar'
-import { BottomNav } from './components/BottomNav'
 import { TransactionModal } from './components/TransactionModal'
 import { CategoryDetail } from './components/CategoryDetail'
 import { InstallGuide } from './components/InstallGuide'
@@ -23,6 +22,13 @@ export default function App() {
   const [showInstallGuide, setShowInstallGuide] = useState(false)
   const txnModal = useUi((s) => s.txnModal)
   const detailCategoryId = useUi((s) => s.detailCategoryId)
+  const navOpen = useUi((s) => s.navOpen)
+  const closeNav = useUi((s) => s.closeNav)
+  const location = useLocation()
+
+  // The drawer closes itself whenever the route changes, so tapping any nav
+  // link inside it dismisses it.
+  useEffect(() => closeNav(), [location.pathname, closeNav])
 
   // Theme lives on the root element so CSS can key off it directly.
   useEffect(() => {
@@ -43,7 +49,8 @@ export default function App() {
   }, [ready, settings.installGuideSeenAt])
 
   return (
-    <div className="app">
+    <div className={`app${navOpen ? ' nav-open' : ''}`}>
+      {navOpen && <div className="nav-scrim" onClick={closeNav} />}
       <Sidebar />
       <div className="main">
         <Routes>
@@ -58,8 +65,6 @@ export default function App() {
           <Route path="*" element={<BudgetPage />} />
         </Routes>
       </div>
-
-      <BottomNav />
 
       {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}
       {txnModal?.open && <TransactionModal />}

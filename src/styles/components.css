@@ -288,8 +288,7 @@
 .toasts {
   position: fixed;
   left: 50%;
-  /* Clear the flush tab bar (~56px) so toasts never sit under it. */
-  bottom: calc(env(safe-area-inset-bottom) + 64px);
+  bottom: calc(env(safe-area-inset-bottom) + 18px);
   transform: translateX(-50%);
   z-index: 90;
   display: flex;
