@@ -1,7 +1,7 @@
 /**
- * Phone behaviour: the floating nav dock, the menu sheet, header-stays-put on
- * scroll, and form fields never dipping under the size that makes iOS Safari
- * zoom the page in.
+ * Phone behaviour: the flush bottom tab bar sitting on the true bottom edge,
+ * the header and bar staying put while the list scrolls, and form fields never
+ * dipping under the 16px that makes iOS Safari zoom the page in.
  *
  *   npm run build && npm run preview   # in one shell
  *   npm run test:e2e                   # in another
@@ -35,24 +35,29 @@ await step('set up an account', async () => {
   await gotoSection(page, 'Budget')
 })
 
-await step('the nav is a floating dock, not a flush bar', async () => {
-  const dock = await page.evaluate(() => {
-    const el = document.querySelector('.navdock')
+await step('the tab bar sits flush on the true bottom edge', async () => {
+  const bar = await page.evaluate(() => {
+    const el = document.querySelector('.bottom-nav')
     if (!el) return null
     const r = el.getBoundingClientRect()
     return {
-      position: getComputedStyle(el).position,
       visible: getComputedStyle(el).display !== 'none',
+      // The whole point of the rebuild: the bar's bottom edge lands on the
+      // viewport's bottom edge, with no band of dead space beneath it.
       bottomGap: Math.round(window.innerHeight - r.bottom),
-      centered: Math.abs((r.left + r.right) / 2 - window.innerWidth / 2) < 4,
+      spansWidth: Math.round(r.width) >= Math.round(window.innerWidth) - 1,
+      atBottomHalf: r.top > window.innerHeight / 2,
     }
   })
-  if (!dock || !dock.visible) throw new Error('the floating dock is not visible on a phone')
-  if (dock.position !== 'fixed') throw new Error(`dock position is ${dock.position}, expected fixed`)
-  // The whole point: it floats above the bottom with margin, so it never needs
-  // the screen's true bottom edge (which iOS reports wrong in standalone).
-  if (dock.bottomGap < 8) throw new Error(`dock is only ${dock.bottomGap}px off the bottom — not floating`)
-  if (!dock.centered) throw new Error('dock is not horizontally centered')
+  if (!bar || !bar.visible) throw new Error('the bottom tab bar is not visible on a phone')
+  if (Math.abs(bar.bottomGap) > 2) throw new Error(`the bar is ${bar.bottomGap}px off the bottom edge`)
+  if (!bar.spansWidth) throw new Error('the bar does not span the full width')
+  if (!bar.atBottomHalf) throw new Error('the bar is not at the bottom of the screen')
+})
+
+await step('the header sits on the true top edge', async () => {
+  const top = await page.evaluate(() => Math.round(document.querySelector('.topbar').getBoundingClientRect().top))
+  if (top !== 0) throw new Error(`the header starts at ${top}px, not the top edge`)
 })
 
 await step('the page itself cannot scroll', async () => {
@@ -75,43 +80,55 @@ await step('the page itself cannot scroll', async () => {
   if (scrollable.documentScrollable) throw new Error('the document grew scrollable')
 })
 
-await step('the header holds still while the list scrolls', async () => {
+await step('the header and tab bar hold still while the list scrolls', async () => {
   const topBefore = await page.locator('.topbar').boundingBox()
+  const barBefore = await page.locator('.bottom-nav').boundingBox()
   await page.locator('.content').evaluate((el) => el.scrollTo(0, 1400))
   await page.waitForTimeout(400)
   const scrolled = await page.locator('.content').evaluate((el) => el.scrollTop)
   if (scrolled < 100) throw new Error(`the list barely scrolled (${scrolled}px)`)
   const topAfter = await page.locator('.topbar').boundingBox()
+  const barAfter = await page.locator('.bottom-nav').boundingBox()
   if (topBefore.y !== topAfter.y) throw new Error(`header moved ${topBefore.y} -> ${topAfter.y}`)
+  if (barBefore.y !== barAfter.y) throw new Error(`tab bar moved ${barBefore.y} -> ${barAfter.y}`)
 })
 
-await step('the dock menu opens the nav sheet with every section', async () => {
-  await page.locator('.navdock-menu').click()
-  await page.waitForTimeout(400)
-  if (!(await page.locator('.navsheet').isVisible())) throw new Error('nav sheet did not open')
-  const items = await page.locator('.navsheet-item').allInnerTexts()
-  for (const expected of ['Budget', 'Accounts', 'Auto-Budget', 'Reports', 'Scheduled', 'Payees', 'Settings']) {
-    if (!items.some((t) => t.includes(expected))) throw new Error(`nav sheet missing ${expected}`)
+await step('the bar carries every primary tab', async () => {
+  const items = await page.locator('.bottom-nav-item').allInnerTexts()
+  for (const expected of ['Budget', 'Accounts', 'Auto-Budget', 'Reports', 'More']) {
+    if (!items.some((t) => t.includes(expected))) throw new Error(`tab bar missing ${expected}`)
   }
-  // The current section is marked.
-  const current = await page.locator('.navsheet-item.current').innerText()
-  if (!current.includes('Budget')) throw new Error(`current item was "${current}", expected Budget`)
+  // Budget is the current section, so its tab is marked.
+  const active = await page.locator('.bottom-nav-item.active').innerText()
+  if (!active.includes('Budget')) throw new Error(`active tab was "${active}", expected Budget`)
 })
 
-await step('navigating from the sheet changes the page', async () => {
-  await page.locator('.navsheet-item', { hasText: 'Accounts' }).click()
+await step('tapping a tab changes the page', async () => {
+  await page.locator('.bottom-nav-item', { hasText: 'Accounts' }).click()
   await page.waitForTimeout(600)
-  if (!(await page.locator('.navsheet').isVisible().catch(() => false)) === false) {
-    // sheet should have closed
-  }
-  const dockLabel = await page.locator('.navdock-menu-label').innerText()
-  if (dockLabel !== 'Accounts') throw new Error(`dock still says "${dockLabel}" after navigating`)
+  const active = await page.locator('.bottom-nav-item.active').innerText()
+  if (!active.includes('Accounts')) throw new Error(`active tab was "${active}" after navigating`)
 })
 
-await step('the dock add button opens the transaction sheet', async () => {
+await step('the More tab opens the overflow sheet', async () => {
+  await page.locator('.bottom-nav-item', { hasText: 'More' }).click()
+  await page.waitForTimeout(400)
+  if (!(await page.locator('.navsheet').isVisible())) throw new Error('the More sheet did not open')
+  const items = await page.locator('.navsheet-item').allInnerTexts()
+  for (const expected of ['Scheduled', 'Payees', 'Settings']) {
+    if (!items.some((t) => t.includes(expected))) throw new Error(`More sheet missing ${expected}`)
+  }
+  if (!(await page.locator('.navsheet-add').isVisible())) throw new Error('New Transaction missing from the More sheet')
+  // Close it again.
+  await page.locator('.navsheet-scrim').click({ position: { x: 10, y: 10 } })
+  await page.waitForTimeout(300)
+})
+
+await step('adding a transaction opens the sheet with no zoom-triggering field', async () => {
+  await gotoSection(page, 'Budget')
   await addTransaction(page)
   await page.waitForTimeout(500)
-  if (!(await page.locator('.modal').isVisible())) throw new Error('add button did not open the transaction modal')
+  if (!(await page.locator('.modal').isVisible())) throw new Error('the transaction modal did not open')
   const small = await undersizedFields()
   if (small.length) throw new Error(`fields under 16px in the transaction sheet: ${JSON.stringify(small)}`)
   await page.locator('.modal-head .icon-btn').click()
@@ -119,7 +136,6 @@ await step('the dock add button opens the transaction sheet', async () => {
 })
 
 await step('no field on the budget screen would trigger iOS zoom', async () => {
-  await gotoSection(page, 'Budget')
   const small = await undersizedFields()
   if (small.length) throw new Error(`under 16px: ${JSON.stringify(small)}`)
 })

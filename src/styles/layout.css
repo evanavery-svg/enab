@@ -3,8 +3,15 @@
  * ------------------------------------------------------------------ */
 
 .app {
-  /* Fills the measured viewport height carried down from html/body. */
-  height: 100%;
+  /*
+   * 100dvh — the dynamic viewport height — is the whole trick. It measures the
+   * visible viewport (unlike `height: 100%`, which resolves against a taller
+   * layout viewport in an iOS standalone PWA). Everything inside is plain flex
+   * flow with nothing position:fixed, so the bottom tab bar lands on the true
+   * bottom edge. 100vh is the fallback for browsers without dvh.
+   */
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   overflow: hidden;
 }
@@ -133,71 +140,52 @@
 .content-pad { padding: 16px; }
 .content-narrow { max-width: 780px; margin: 0 auto; }
 
-/* ---------------- Floating nav dock (mobile) ---------------- */
+/* ---------------- Bottom tab bar (mobile) ---------------- */
 
 /*
- * A floating control instead of a flush tab bar. It sits *above* the bottom
- * with margin, so it never needs the screen's true bottom edge — the value
- * iOS reports wrong in a standalone app, which is what made a flush bar
- * impossible to place. On desktop the sidebar handles navigation and this is
- * hidden.
+ * A flush tab bar that sits on the screen's true bottom edge. It is a plain
+ * flex child at the end of the `.app` column — nothing position:fixed — so in
+ * an iOS standalone PWA it lands exactly on the bottom instead of floating
+ * above a band of dead space. The bar's fill runs all the way down; its
+ * padding-bottom carries the home-indicator safe area, keeping the tappable
+ * icons above it. On desktop the sidebar navigates and this is hidden.
  */
-.navdock {
+.bottom-nav {
   display: none;
-  position: fixed;
-  z-index: 40;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: calc(env(safe-area-inset-bottom) + 14px);
-  align-items: center;
-  gap: 8px;
-  padding: 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--surface) 82%, transparent);
-  -webkit-backdrop-filter: saturate(180%) blur(20px);
-  backdrop-filter: saturate(180%) blur(20px);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow-3);
+  flex: none;
+  align-items: stretch;
+  justify-content: space-around;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
 }
-
-.navdock-menu {
+.bottom-nav-item {
+  flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  height: 46px;
-  padding: 0 8px 0 6px;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 2px 7px;
   border: none;
   background: transparent;
-  color: var(--text);
-  border-radius: 999px;
+  color: var(--text-faint);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
-.navdock-menu:active { background: var(--surface-2); }
-.navdock-menu-icon {
+.bottom-nav-item .bn-ico {
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--text);
+  height: 26px;
 }
-.navdock-menu-label { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
-.navdock-menu-chev { color: var(--text-faint); margin-right: 2px; }
+.bottom-nav-item:hover { text-decoration: none; }
+.bottom-nav-item:active { color: var(--text); }
+.bottom-nav-item.active { color: var(--accent-ink); }
 
-.navdock-add {
-  display: grid;
-  place-items: center;
-  width: 46px;
-  height: 46px;
-  flex: none;
-  border: none;
-  border-radius: 999px;
-  background: var(--accent);
-  color: var(--accent-text);
-}
-.navdock-add:active { filter: brightness(0.92); }
-
-/* ---------------- Nav sheet (mobile menu) ---------------- */
+/* ---------------- Bottom sheet (mobile "More" menu) ---------------- */
 
 .navsheet-scrim {
   position: fixed;
@@ -283,32 +271,17 @@
 
 @media (max-width: 899px) {
   .sidebar { display: none; }
-  .app { flex-direction: column; }
-  .main { height: 100%; }
-  .navdock { display: flex; }
 
   /*
-   * The header is pinned to the top of the viewport; the content is a fixed
-   * box from just below it to the bottom of the viewport. There is no flush
-   * bottom bar any more, so nothing depends on the screen's true bottom edge —
-   * the floating dock hovers above it with margin. The last of the scroll is
-   * padded so content clears the dock.
+   * The `.app` column (100dvh) stacks three plain flex children: the header
+   * (flex:none), the scroll area (flex:1) and the tab bar (flex:none). Nothing
+   * is position:fixed, so the header sits on the true top edge and the tab bar
+   * on the true bottom edge, with the safe-area insets carried by the header's
+   * padding-top and the bar's padding-bottom.
    */
-  .topbar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 20;
-  }
-  .content {
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: calc(var(--header-h) + env(safe-area-inset-top));
-    bottom: 0;
-    padding-bottom: calc(env(safe-area-inset-bottom) + 84px);
-  }
+  .app { flex-direction: column; }
+  .bottom-nav { display: flex; }
+  .content { padding-bottom: 10px; }
 }
 
 /* ---------------- Drawer (right-side detail panel) ---------------- */
@@ -367,6 +340,6 @@
   gap: 10px;
 }
 
-/* A bulk action bar takes over the bottom while the user is mid-action; the
-   floating dock would only sit on top of it. */
-.app:has(.bulk-bar) .navdock { display: none; }
+/* A bulk action bar takes over the bottom while the user is mid-action; hide
+   the tab bar so the two don't stack. */
+.app:has(.bulk-bar) .bottom-nav { display: none; }

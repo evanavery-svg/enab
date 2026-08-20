@@ -41,6 +41,7 @@ export default function BudgetPage() {
   const { groups, categories, budget, money, accounts } = data
   const month = useUi((s) => s.month)
   const openDetail = useUi((s) => s.openCategoryDetail)
+  const openTxnModal = useUi((s) => s.openTxnModal)
   const navigate = useNavigate()
 
   const [showHidden, setShowHidden] = useState(false)
@@ -109,6 +110,14 @@ export default function BudgetPage() {
       <header className="topbar">
         <MonthNav />
         <span className="spacer" />
+        <button
+          className="icon-btn add-txn"
+          onClick={() => openTxnModal()}
+          title="Add transaction"
+          aria-label="Add transaction"
+        >
+          <Icon name="plus" size={20} strokeWidth={2.2} />
+        </button>
         <MenuButton
           label={
             <>

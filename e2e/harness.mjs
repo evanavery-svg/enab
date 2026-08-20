@@ -59,21 +59,39 @@ export function finish(errors) {
 
 /** Works at both desktop and phone widths. */
 export async function addTransaction(page) {
-  const dockAdd = page.locator('.navdock-add')
-  if (await dockAdd.isVisible().catch(() => false)) await dockAdd.click()
-  else await page.locator('.sidebar').getByRole('button', { name: 'Add Transaction' }).click()
+  const sidebarAdd = page.locator('.sidebar').getByRole('button', { name: 'Add Transaction' })
+  if (await sidebarAdd.isVisible().catch(() => false)) {
+    await sidebarAdd.click()
+    return
+  }
+  // Phone: the Budget screen has a top-bar quick-add; from anywhere else the
+  // "More" sheet carries a New Transaction button.
+  const quick = page.locator('.topbar .add-txn')
+  if (await quick.isVisible().catch(() => false)) {
+    await quick.click()
+    return
+  }
+  await page.locator('.bottom-nav-item', { hasText: 'More' }).click()
+  await page.waitForTimeout(300)
+  await page.locator('.navsheet-add').click()
 }
 
 /**
- * Navigate to a section by its label, using the floating dock menu on a phone
- * and the sidebar on desktop.
+ * Navigate to a section by its label, using the bottom tab bar on a phone
+ * (primary tabs directly, everything else via the "More" sheet) and the
+ * sidebar on desktop.
  */
 export async function gotoSection(page, label) {
-  const dockMenu = page.locator('.navdock-menu')
-  if (await dockMenu.isVisible().catch(() => false)) {
-    await dockMenu.click()
-    await page.waitForTimeout(300)
-    await page.locator('.navsheet-item', { hasText: new RegExp('^' + label) }).click()
+  const bar = page.locator('.bottom-nav')
+  if (await bar.isVisible().catch(() => false)) {
+    const tab = bar.locator('.bottom-nav-item', { hasText: new RegExp('^' + label + '$') })
+    if (await tab.count()) {
+      await tab.first().click()
+    } else {
+      await bar.locator('.bottom-nav-item', { hasText: 'More' }).click()
+      await page.waitForTimeout(300)
+      await page.locator('.navsheet-item', { hasText: new RegExp('^' + label) }).click()
+    }
   } else {
     await page.locator('.sidebar').getByRole('link', { name: new RegExp('^' + label) }).first().click()
   }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Toasts } from './components/Toasts'
 import { Sidebar } from './components/Sidebar'
-import { NavDock } from './components/NavDock'
+import { BottomNav } from './components/BottomNav'
 import { TransactionModal } from './components/TransactionModal'
 import { CategoryDetail } from './components/CategoryDetail'
 import { InstallGuide } from './components/InstallGuide'
@@ -59,7 +59,7 @@ export default function App() {
         </Routes>
       </div>
 
-      <NavDock />
+      <BottomNav />
 
       {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}
       {txnModal?.open && <TransactionModal />}

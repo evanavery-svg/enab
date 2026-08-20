@@ -146,8 +146,8 @@ await step('mobile layout', async () => {
   await page.waitForTimeout(400)
   await page.getByRole('button', { name: 'Previous month' }).click()
   await page.waitForTimeout(400)
-  const dockVisible = await page.locator('.navdock').isVisible()
-  if (!dockVisible) throw new Error('floating nav dock missing on mobile')
+  const barVisible = await page.locator('.bottom-nav').isVisible()
+  if (!barVisible) throw new Error('bottom tab bar missing on mobile')
 })
 await gotoSection(page, 'Accounts')
 

@@ -5,11 +5,14 @@
 }
 
 /*
- * Full-height shell with no scrolling document. On desktop the flex layout
- * fills this height; on a phone the header, content and tab bar are each
- * pinned to the viewport with position: fixed (see layout.css), so the exact
- * value of this height does not drive the mobile layout at all — the tab bar
- * is anchored to `bottom: 0` of the screen regardless.
+ * Full-height shell with no scrolling document. The real height driver is
+ * `.app`, which uses 100dvh (see layout.css) — the *dynamic* viewport height,
+ * which tracks the actually-visible viewport. Everything inside is plain
+ * flexbox flow with nothing position:fixed, so the header, scroll area and
+ * bottom tab bar stack naturally from the true top edge to the true bottom
+ * edge. That is the pattern that makes a flush bottom bar sit right in an iOS
+ * standalone PWA, where `height: 100%` / `position: fixed` anchor to a taller
+ * layout viewport and leave a band of dead space below the bar.
  */
 html {
   height: 100%;
