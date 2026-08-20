@@ -124,6 +124,33 @@ await step('the scrim closes the drawer', async () => {
   if (navOpen) throw new Error('tapping the scrim did not close the drawer')
 })
 
+await step('a swipe from the left edge opens the drawer', async () => {
+  // Synthesize a left-edge drag: touchstart at the edge, moving right past the
+  // commit threshold.
+  await page.evaluate(() => {
+    const fire = (type, x, y) => {
+      const t = new Touch({ identifier: 1, target: document.body, clientX: x, clientY: y })
+      document.dispatchEvent(
+        new TouchEvent(type, {
+          touches: type === 'touchend' ? [] : [t],
+          changedTouches: [t],
+          bubbles: true,
+          cancelable: true,
+        }),
+      )
+    }
+    fire('touchstart', 6, 420)
+    fire('touchmove', 45, 422)
+    fire('touchmove', 100, 424)
+    fire('touchend', 100, 424)
+  })
+  await page.waitForTimeout(360)
+  const navOpen = await page.evaluate(() => document.querySelector('.app').classList.contains('nav-open'))
+  if (!navOpen) throw new Error('the edge swipe did not open the drawer')
+  await page.locator('.nav-scrim').click({ position: { x: 340, y: 300 } })
+  await page.waitForTimeout(300)
+})
+
 await step('adding a transaction opens the sheet with no zoom-triggering field', async () => {
   await gotoSection(page, 'Budget')
   await addTransaction(page)

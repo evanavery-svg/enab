@@ -38,20 +38,20 @@
   margin: 0;
   padding: 16px;
   border-radius: var(--radius-lg);
-  /* A faint orange wash with the amount itself in orange — the accent lands on
-     the one number that matters, not the whole card. */
-  background: var(--accent-soft);
+  /* The one orange-accented surface: an orange outline and an orange amount,
+     no fill. Everything else on the screen is black-and-white. */
+  background: transparent;
   color: var(--text);
   display: flex;
   align-items: center;
   gap: 14px;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: 1.5px solid var(--accent);
   text-align: left;
   width: 100%;
 }
 .rta:hover { filter: brightness(0.98); }
-.rta.zero { background: var(--surface-2); }
+.rta.zero { border-color: var(--border); }
 .rta.over .rta-amount { color: var(--accent-ink); }
 .rta .rta-amount {
   font-size: 27px;
@@ -235,20 +235,21 @@
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  border: none;
+  /* Outline by default; states fill it. No grey fills anywhere. */
+  border: 1px solid var(--border);
   font-family: var(--font-num);
   font-size: 13.5px;
   font-weight: 650;
   font-variant-numeric: tabular-nums;
-  background: var(--neutral-pill);
-  color: var(--neutral-pill-text);
+  background: transparent;
+  color: var(--text);
   max-width: 100%;
 }
-.avail-pill.positive { background: var(--positive-soft); color: var(--positive); }
+.avail-pill.positive { background: transparent; color: var(--text); }
 /* Cash overspending is the one alarm on the screen, so it wears solid orange. */
-.avail-pill.overspent-cash { background: var(--accent); color: var(--accent-text); }
-.avail-pill.overspent-credit { background: var(--warning-soft); color: var(--warning); }
-.avail-pill.funded { background: var(--positive); color: var(--bg); }
+.avail-pill.overspent-cash { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+.avail-pill.overspent-credit { background: transparent; color: var(--accent); border-color: var(--accent); }
+.avail-pill.funded { background: var(--positive); color: var(--bg); border-color: var(--positive); }
 .avail-pill:hover { filter: brightness(0.95); }
 
 @media (max-width: 720px) {

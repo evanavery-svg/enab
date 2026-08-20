@@ -23,12 +23,68 @@ export default function App() {
   const txnModal = useUi((s) => s.txnModal)
   const detailCategoryId = useUi((s) => s.detailCategoryId)
   const navOpen = useUi((s) => s.navOpen)
+  const openNav = useUi((s) => s.openNav)
   const closeNav = useUi((s) => s.closeNav)
   const location = useLocation()
 
   // The drawer closes itself whenever the route changes, so tapping any nav
   // link inside it dismisses it.
   useEffect(() => closeNav(), [location.pathname, closeNav])
+
+  // Swipe from the left edge opens the drawer; swipe left while it is open
+  // closes it. Touch only, so it never interferes with a mouse on desktop.
+  useEffect(() => {
+    const EDGE = 30 // px from the left edge that starts an opening swipe
+    const THRESHOLD = 55 // horizontal travel that commits the gesture
+    let startX = 0
+    let startY = 0
+    let tracking = false
+    let decided = false
+
+    const onStart = (e: TouchEvent) => {
+      const t = e.touches[0]
+      startX = t.clientX
+      startY = t.clientY
+      decided = false
+      // Track an opening swipe only from the very edge; a closing swipe from
+      // anywhere while the drawer is open.
+      tracking = navOpen || startX <= EDGE
+    }
+    const onMove = (e: TouchEvent) => {
+      if (!tracking) return
+      const t = e.touches[0]
+      const dx = t.clientX - startX
+      const dy = t.clientY - startY
+      if (!decided) {
+        if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return
+        decided = true
+        // A mostly-vertical move is a scroll, not a drawer swipe.
+        if (Math.abs(dy) > Math.abs(dx)) {
+          tracking = false
+          return
+        }
+      }
+      if (!navOpen && dx > THRESHOLD) {
+        openNav()
+        tracking = false
+      } else if (navOpen && dx < -THRESHOLD) {
+        closeNav()
+        tracking = false
+      }
+    }
+    const onEnd = () => {
+      tracking = false
+    }
+
+    document.addEventListener('touchstart', onStart, { passive: true })
+    document.addEventListener('touchmove', onMove, { passive: true })
+    document.addEventListener('touchend', onEnd, { passive: true })
+    return () => {
+      document.removeEventListener('touchstart', onStart)
+      document.removeEventListener('touchmove', onMove)
+      document.removeEventListener('touchend', onEnd)
+    }
+  }, [navOpen, openNav, closeNav])
 
   // Theme lives on the root element so CSS can key off it directly.
   useEffect(() => {
