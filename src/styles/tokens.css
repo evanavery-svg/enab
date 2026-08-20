@@ -8,38 +8,44 @@
  * ------------------------------------------------------------------ */
 
 :root {
-  /* Surfaces */
-  --bg: #f2f2f4;
+  /* Three colours only: pure white, pure black, orange. Every "grey" below is
+     black at reduced strength — a neutral shade of the same ink, not a fourth
+     hue. Orange is reserved for the one thing that matters on each screen. */
+
+  /* Surfaces — white */
+  --bg: #ffffff;
   --surface: #ffffff;
-  --surface-2: #ececef;
-  --surface-3: #e1e1e6;
-  --overlay: rgba(0, 0, 0, 0.4);
+  --surface-2: #f4f4f4;
+  --surface-3: #e8e8e8;
+  --overlay: rgba(0, 0, 0, 0.45);
 
-  /* Ink */
-  --text: #0a0a0a;
-  --text-dim: #6a6a70;
-  --text-faint: #9c9ca3;
-  --border: #e4e4e8;
-  --border-strong: #d3d3d9;
+  /* Ink — black, and neutral greys derived from it */
+  --text: #000000;
+  --text-dim: #707070;
+  --text-faint: #a2a2a2;
+  --border: #e6e6e6;
+  --border-strong: #d0d0d0;
 
-  /* Accent — orange. `accent` is for fills, icons and indicators;
-     `accent-ink` is the contrast-safe orange for text on the page. */
+  /* Accent — orange. `accent` is for fills, icons and indicators; `accent-ink`
+     is the legible orange for text on white; `accent-soft` is the same orange
+     at a whisper, for the one highlighted surface per screen. */
   --accent: #ff6a00;
-  --accent-ink: #c85400;
-  --accent-soft: #ffe9d8;
+  --accent-ink: #d75e00;
+  --accent-soft: rgba(255, 106, 0, 0.12);
   --accent-text: #ffffff;
 
-  /* Semantic — muted so the accent stays the loudest colour on screen */
-  --positive: #1a8a4a;
-  --positive-soft: #dcf1e4;
-  --warning: #9a6a00;
-  --warning-soft: #f7eccf;
-  --danger: #cf2e26;
-  --danger-soft: #fadedb;
-  --info: #3a6ea5;
-  --info-soft: #dfe9f4;
-  --neutral-pill: #ececef;
-  --neutral-pill-text: #56565c;
+  /* Money states, kept within the three colours: "good" is calm black-on-grey,
+     "attention" (overspent, negative, destructive) is orange. */
+  --positive: #111111;
+  --positive-soft: #f0f0f0;
+  --warning: #d75e00;
+  --warning-soft: rgba(255, 106, 0, 0.12);
+  --danger: #d75e00;
+  --danger-soft: rgba(255, 106, 0, 0.12);
+  --info: #707070;
+  --info-soft: #f0f0f0;
+  --neutral-pill: #f0f0f0;
+  --neutral-pill-text: #707070;
 
   /* Flags */
   --flag-red: #e0342c;
@@ -67,7 +73,7 @@
   --shadow-2: 0 6px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.05);
   --shadow-3: 0 16px 40px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
 
-  --header-h: 52px;
+  --header-h: 56px;
   --nav-h: 60px;
   --sidebar-w: 264px;
 
@@ -86,32 +92,32 @@
     color-scheme: dark;
 
     --bg: #000000;
-    --surface: #161618;
-    --surface-2: #232326;
-    --surface-3: #303034;
-    --overlay: rgba(0, 0, 0, 0.65);
+    --surface: #0f0f0f;
+    --surface-2: #1b1b1b;
+    --surface-3: #272727;
+    --overlay: rgba(0, 0, 0, 0.7);
 
-    --text: #f5f5f7;
-    --text-dim: #98989f;
-    --text-faint: #636368;
-    --border: #2a2a2e;
-    --border-strong: #3a3a40;
+    --text: #ffffff;
+    --text-dim: #9a9a9a;
+    --text-faint: #5e5e5e;
+    --border: #262626;
+    --border-strong: #383838;
 
     --accent: #ff8a2e;
-    --accent-ink: #ff9f55;
-    --accent-soft: #331e0d;
-    --accent-text: #161618;
+    --accent-ink: #ff9a4d;
+    --accent-soft: rgba(255, 138, 46, 0.16);
+    --accent-text: #000000;
 
-    --positive: #34c759;
-    --positive-soft: #10361f;
-    --warning: #e0a72e;
-    --warning-soft: #382a0e;
-    --danger: #ff4d43;
-    --danger-soft: #3d1613;
-    --info: #6ea8e0;
-    --info-soft: #142433;
-    --neutral-pill: #26262a;
-    --neutral-pill-text: #98989f;
+    --positive: #ffffff;
+    --positive-soft: #1b1b1b;
+    --warning: #ff9a4d;
+    --warning-soft: rgba(255, 138, 46, 0.16);
+    --danger: #ff9a4d;
+    --danger-soft: rgba(255, 138, 46, 0.16);
+    --info: #9a9a9a;
+    --info-soft: #1b1b1b;
+    --neutral-pill: #1b1b1b;
+    --neutral-pill-text: #9a9a9a;
 
     --flag-red: #ff5a50;
     --flag-orange: #ff8a2e;
@@ -139,32 +145,32 @@
   color-scheme: dark;
 
   --bg: #000000;
-  --surface: #161618;
-  --surface-2: #232326;
-  --surface-3: #303034;
-  --overlay: rgba(0, 0, 0, 0.65);
+  --surface: #0f0f0f;
+  --surface-2: #1b1b1b;
+  --surface-3: #272727;
+  --overlay: rgba(0, 0, 0, 0.7);
 
-  --text: #f5f5f7;
-  --text-dim: #98989f;
-  --text-faint: #636368;
-  --border: #2a2a2e;
-  --border-strong: #3a3a40;
+  --text: #ffffff;
+  --text-dim: #9a9a9a;
+  --text-faint: #5e5e5e;
+  --border: #262626;
+  --border-strong: #383838;
 
   --accent: #ff8a2e;
-  --accent-ink: #ff9f55;
-  --accent-soft: #331e0d;
-  --accent-text: #161618;
+  --accent-ink: #ff9a4d;
+  --accent-soft: rgba(255, 138, 46, 0.16);
+  --accent-text: #000000;
 
-  --positive: #34c759;
-  --positive-soft: #10361f;
-  --warning: #e0a72e;
-  --warning-soft: #382a0e;
-  --danger: #ff4d43;
-  --danger-soft: #3d1613;
-  --info: #6ea8e0;
-  --info-soft: #142433;
-  --neutral-pill: #26262a;
-  --neutral-pill-text: #98989f;
+  --positive: #ffffff;
+  --positive-soft: #1b1b1b;
+  --warning: #ff9a4d;
+  --warning-soft: rgba(255, 138, 46, 0.16);
+  --danger: #ff9a4d;
+  --danger-soft: rgba(255, 138, 46, 0.16);
+  --info: #9a9a9a;
+  --info-soft: #1b1b1b;
+  --neutral-pill: #1b1b1b;
+  --neutral-pill-text: #9a9a9a;
 
   --flag-red: #ff5a50;
   --flag-orange: #ff8a2e;

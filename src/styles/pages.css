@@ -5,14 +5,16 @@
 .month-nav {
   display: flex;
   align-items: center;
-  gap: 4px;
-  font-weight: 650;
+  gap: 2px;
 }
 .month-nav .month-label {
-  min-width: 128px;
+  min-width: 0;
   text-align: center;
-  font-size: 15px;
-  padding: 6px 8px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  padding: 5px 8px;
   border: none;
   background: transparent;
   border-radius: var(--radius);
@@ -36,10 +38,10 @@
   margin: 0;
   padding: 16px;
   border-radius: var(--radius-lg);
-  /* Money waiting to be assigned is the call to action, so it wears the
-     accent rather than a "success" green. */
+  /* A faint orange wash with the amount itself in orange — the accent lands on
+     the one number that matters, not the whole card. */
   background: var(--accent-soft);
-  color: var(--accent-ink);
+  color: var(--text);
   display: flex;
   align-items: center;
   gap: 14px;
@@ -49,17 +51,19 @@
   width: 100%;
 }
 .rta:hover { filter: brightness(0.98); }
-.rta.zero { background: var(--surface-2); color: var(--text-dim); }
-.rta.over { background: var(--danger-soft); color: var(--danger); }
+.rta.zero { background: var(--surface-2); }
+.rta.over .rta-amount { color: var(--accent-ink); }
 .rta .rta-amount {
-  font-size: 26px;
-  font-weight: 750;
+  font-size: 27px;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1.1;
+  color: var(--accent-ink);
 }
-.rta .rta-label { font-size: 13px; font-weight: 600; opacity: 0.85; }
-.rta .rta-chev { margin-left: auto; opacity: 0.6; }
+.rta.zero .rta-amount { color: var(--text-dim); }
+.rta .rta-label { font-size: 13px; font-weight: 600; color: var(--text-dim); }
+.rta .rta-chev { margin-left: auto; color: var(--text-faint); }
 
 .rta-detail {
   margin: 0 16px;
@@ -241,9 +245,10 @@
   max-width: 100%;
 }
 .avail-pill.positive { background: var(--positive-soft); color: var(--positive); }
-.avail-pill.overspent-cash { background: var(--danger-soft); color: var(--danger); }
+/* Cash overspending is the one alarm on the screen, so it wears solid orange. */
+.avail-pill.overspent-cash { background: var(--accent); color: var(--accent-text); }
 .avail-pill.overspent-credit { background: var(--warning-soft); color: var(--warning); }
-.avail-pill.funded { background: var(--positive); color: #fff; }
+.avail-pill.funded { background: var(--positive); color: var(--bg); }
 .avail-pill:hover { filter: brightness(0.95); }
 
 @media (max-width: 720px) {
@@ -466,7 +471,7 @@
   font-size: 11px;
   font-weight: 800;
 }
-.cleared-mark.cleared { background: var(--positive); border-color: var(--positive); color: #fff; }
+.cleared-mark.cleared { background: var(--positive); border-color: var(--positive); color: var(--bg); }
 .cleared-mark.reconciled { background: var(--info); border-color: var(--info); color: #fff; }
 
 .bulk-bar {
