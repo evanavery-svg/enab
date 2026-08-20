@@ -8,13 +8,10 @@
  * ------------------------------------------------------------------ */
 
 :root {
-  /* Three colours only: pure white, pure black, orange. Every "grey" below is
-     black at reduced strength — a neutral shade of the same ink, not a fourth
-     hue. Orange is reserved for the one thing that matters on each screen. */
-
-  /* Three colours, no grey. Structure comes from black hairlines and
-     outline/solid shapes, never a grey fill. Every surface is white, every
-     line and every "dim" bit of text is black, and orange is the one accent. */
+  /* Three colours, no grey. Structure comes from whitespace and soft depth, not
+     lines or grey fills. Every surface is white (a whisper of elevation in dark
+     mode), text and the few remaining lines are the ink colour, and orange is
+     the single accent, spent only where it counts. */
 
   /* Surfaces — all white; separation is drawn, not shaded */
   --bg: #ffffff;
@@ -96,9 +93,9 @@
     color-scheme: dark;
 
     --bg: #000000;
-    --surface: #000000;
-    --surface-2: #000000;
-    --surface-3: #000000;
+    --surface: #0e0e0e;
+    --surface-2: #1a1a1a;
+    --surface-3: #242424;
     --overlay: rgba(0, 0, 0, 0.72);
 
     --text: #ffffff;
@@ -149,9 +146,9 @@
   color-scheme: dark;
 
   --bg: #000000;
-  --surface: #000000;
-  --surface-2: #000000;
-  --surface-3: #000000;
+  --surface: #0e0e0e;
+  --surface-2: #1a1a1a;
+  --surface-3: #242424;
   --overlay: rgba(0, 0, 0, 0.72);
 
   --text: #ffffff;

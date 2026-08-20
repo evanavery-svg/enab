@@ -120,10 +120,10 @@
 .budget-head span:not(:first-child) { text-align: right; }
 
 .group-card {
-  margin-bottom: 10px;
+  margin-bottom: 14px;
   background: var(--surface);
-  border: 1px solid var(--border);
   border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
   overflow: hidden;
 }
 
@@ -132,9 +132,7 @@
   grid-template-columns: minmax(0, 1fr) 100px 100px 116px;
   align-items: center;
   gap: 8px;
-  padding: 9px 12px;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
+  padding: 11px 12px;
   font-weight: 700;
   font-size: 13.5px;
 }
@@ -176,12 +174,10 @@
 .group-row .num { text-align: right; font-family: var(--font-num); font-size: 13px; }
 
 .cat-row {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border);
+  padding: 11px 12px;
   cursor: pointer;
   transition: background 0.1s ease;
 }
-.cat-row:last-child { border-bottom: none; }
 .cat-row:hover { background: var(--surface-2); }
 .cat-row.selected { background: var(--accent-soft); }
 
@@ -235,8 +231,9 @@
   align-items: center;
   padding: 4px 10px;
   border-radius: 999px;
-  /* Outline by default; states fill it. No grey fills anywhere. */
-  border: 1px solid var(--border);
+  /* No outline — a plain number by default. Only the states that matter get a
+     solid fill, so the screen stays free of boxes. */
+  border: none;
   font-family: var(--font-num);
   font-size: 13.5px;
   font-weight: 650;
@@ -247,9 +244,9 @@
 }
 .avail-pill.positive { background: transparent; color: var(--text); }
 /* Cash overspending is the one alarm on the screen, so it wears solid orange. */
-.avail-pill.overspent-cash { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-.avail-pill.overspent-credit { background: transparent; color: var(--accent); border-color: var(--accent); }
-.avail-pill.funded { background: var(--positive); color: var(--bg); border-color: var(--positive); }
+.avail-pill.overspent-cash { background: var(--accent); color: var(--accent-text); }
+.avail-pill.overspent-credit { background: transparent; color: var(--accent); }
+.avail-pill.funded { background: var(--positive); color: var(--bg); }
 .avail-pill:hover { filter: brightness(0.95); }
 
 @media (max-width: 720px) {
