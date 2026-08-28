@@ -10,7 +10,32 @@
  */
 import { launch, step, finish, addTransaction, gotoSection } from './harness.mjs'
 
-const { browser, page, errors } = await launch({ device: 'iPhone 13' })
+const { browser, context, page, errors } = await launch({ device: 'iPhone 13' })
+
+/**
+ * A real, browser-trusted touch drag via CDP — touchstart, several
+ * touchmoves, touchend. This is what actually exercises native scrolling.
+ * `page.evaluate(() => window.scrollTo(...))` and a synthetic
+ * `document.dispatchEvent(new TouchEvent(...))` both bypass it entirely (the
+ * former just sets scroll position directly with no gesture involved at all;
+ * the latter dispatches an event my own JS listeners can react to, but
+ * untrusted synthetic events never trigger the browser's built-in scroll
+ * behaviour) — so a test built on either can pass while a real finger swipe
+ * does nothing, which is exactly the gap that let a broken CSS cascade slip
+ * through undetected once already.
+ */
+async function touchScroll(fromY, toY, x = 195) {
+  const cdp = await context.newCDPSession(page)
+  const steps = 5
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y: fromY }] })
+  for (let i = 1; i <= steps; i++) {
+    const y = fromY + ((toY - fromY) * i) / steps
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] })
+    await page.waitForTimeout(25)
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+  await page.waitForTimeout(400)
+}
 
 /** Every visible text field, with its rendered size. */
 async function undersizedFields() {
@@ -85,6 +110,15 @@ await step('expanding the Ready to Assign detail keeps the bar on the bottom edg
 await step('the header sits on the true top edge', async () => {
   const top = await page.evaluate(() => Math.round(document.querySelector('.topbar').getBoundingClientRect().top))
   if (top !== 0) throw new Error(`the header starts at ${top}px, not the top edge`)
+})
+
+await step('a real finger swipe scrolls the page', async () => {
+  const before = await page.evaluate(() => window.scrollY)
+  await touchScroll(650, 200)
+  const after = await page.evaluate(() => window.scrollY)
+  if (after <= before) throw new Error(`a real touch drag did not scroll the page (scrollY stayed at ${after})`)
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await page.waitForTimeout(300)
 })
 
 await step('the page itself scrolls, the ordinary webpage way', async () => {

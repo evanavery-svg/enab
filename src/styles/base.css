@@ -32,14 +32,6 @@ html {
   --probe-safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-@media (max-width: 899px) {
-  html, body, #root {
-    height: auto;
-    min-height: 100%;
-    overflow: visible;
-  }
-}
-
 /*
  * <html> carries the page background so the strip iOS paints below the
  * (short) standalone viewport blends seamlessly with the page. With no flush
@@ -62,12 +54,26 @@ body {
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
 }
-@media (max-width: 899px) {
-  body { overscroll-behavior-y: contain; }
-}
 
 #root {
   height: 100%;
+}
+
+/*
+ * Mobile override, placed last so it wins the cascade against the
+ * unconditional rules above (a media query does not add specificity — the
+ * later rule in source order wins when both apply, regardless of which one
+ * is behind a media query — so this block has to come after everything it's
+ * meant to override, not before). Un-clips html/body/#root so the document
+ * itself can scroll; see the comment at the top of this file for why.
+ */
+@media (max-width: 899px) {
+  html, body, #root {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
+  body { overscroll-behavior-y: contain; }
 }
 
 h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: 650; line-height: 1.25; }
