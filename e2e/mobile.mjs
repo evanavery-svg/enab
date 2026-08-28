@@ -1,8 +1,9 @@
 /**
- * Phone behaviour: the slide-in navigation drawer, a header pinned to the true
- * top edge, the Ready to Assign bar sitting flush on the true bottom edge on
- * Budget (with no bottom chrome at all on screens that don't have it), and
- * form fields never dipping under the 16px that makes iOS Safari zoom the page.
+ * Phone behaviour: the page scrolls natively (no clipped, exact-100dvh shell —
+ * see the comment on `html` in base.css for why), the header stays sticky at
+ * the true top edge, the Ready to Assign bar sticks to the true bottom edge on
+ * Budget, and form fields never dip under the 16px that makes iOS Safari zoom
+ * the page.
  *
  *   npm run build && npm run preview   # in one shell
  *   npm run test:e2e                   # in another
@@ -37,9 +38,10 @@ await step('set up an account', async () => {
 })
 
 await step('the Ready to Assign bar sits flush on the true bottom edge', async () => {
-  // The bar is a plain flex child at the end of the page column (see
-  // .rta-wrap in layout — nothing position:fixed), so it should land exactly
-  // on the viewport's bottom edge instead of floating above a gap.
+  // The bar is `position: sticky; bottom: 0` in a page that scrolls natively
+  // (see .rta-wrap's mobile override in pages.css) — not sized to fit a
+  // precise container height — so it should land exactly on the viewport's
+  // bottom edge regardless of how tall the page turns out to be.
   const gap = await page.evaluate(() => {
     const bar = document.querySelector('.rta-wrap')
     const r = bar.getBoundingClientRect()
@@ -48,19 +50,22 @@ await step('the Ready to Assign bar sits flush on the true bottom edge', async (
   if (Math.abs(gap) > 2) throw new Error(`the RTA bar is ${gap}px off the bottom edge`)
 })
 
-await step('a screen without a bottom bar has no bottom chrome at all', async () => {
+await step('a screen without a bottom bar has none, and still fills the screen', async () => {
   await gotoSection(page, 'Accounts')
   const shell = await page.evaluate(() => {
-    const content = document.querySelector('.content')
-    const r = content.getBoundingClientRect()
+    const app = document.querySelector('.app')
     return {
       hasRtaBar: !!document.querySelector('.rta-wrap'),
-      contentBottomGap: Math.round(window.innerHeight - r.bottom),
+      // A short page (few accounts) still visually fills the screen via
+      // `.app`'s min-height: 100dvh, rather than leaving a gap of a
+      // different colour below whatever content there is.
+      appHeight: Math.round(app.getBoundingClientRect().height),
     }
   })
   if (shell.hasRtaBar) throw new Error('the RTA bar leaked onto a screen that should not have it')
-  if (Math.abs(shell.contentBottomGap) > 2)
-    throw new Error(`content stops ${shell.contentBottomGap}px short of the bottom edge`)
+  const viewport = await page.evaluate(() => window.innerHeight)
+  if (shell.appHeight + 2 < viewport)
+    throw new Error(`the app is only ${shell.appHeight}px tall against a ${viewport}px viewport`)
   await gotoSection(page, 'Budget')
 })
 
@@ -82,34 +87,28 @@ await step('the header sits on the true top edge', async () => {
   if (top !== 0) throw new Error(`the header starts at ${top}px, not the top edge`)
 })
 
-await step('the page itself cannot scroll', async () => {
-  const scrollable = await page.evaluate(() => {
-    const probe = document.createElement('div')
-    probe.style.cssText = 'height:4000px;width:1px'
-    document.body.appendChild(probe)
-    window.scrollTo(0, 2000)
-    const out = {
-      htmlOverflow: getComputedStyle(document.documentElement).overflow,
-      documentScrolled: window.scrollY,
-      documentScrollable:
-        document.documentElement.scrollHeight > document.documentElement.clientHeight,
-    }
-    probe.remove()
-    return out
-  })
-  if (scrollable.htmlOverflow !== 'hidden') throw new Error(`html overflow is ${scrollable.htmlOverflow}`)
-  if (scrollable.documentScrolled !== 0) throw new Error(`the window scrolled to ${scrollable.documentScrolled}`)
-  if (scrollable.documentScrollable) throw new Error('the document grew scrollable')
+await step('the page itself scrolls, the ordinary webpage way', async () => {
+  // The deliberate model on a phone: no clipped 100dvh shell, just a normal
+  // document that scrolls when its content is taller than the viewport.
+  const before = await page.evaluate(() => window.scrollY)
+  await page.evaluate(() => window.scrollTo(0, 1400))
+  await page.waitForTimeout(400)
+  const after = await page.evaluate(() => window.scrollY)
+  if (after <= before) throw new Error(`the page did not scroll (scrollY stayed at ${after})`)
 })
 
-await step('the header holds still while the list scrolls', async () => {
+await step('the sticky header holds still while the page scrolls under it', async () => {
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await page.waitForTimeout(200)
   const topBefore = await page.locator('.topbar').boundingBox()
-  await page.locator('.content').evaluate((el) => el.scrollTo(0, 1400))
+  await page.evaluate(() => window.scrollTo(0, 1400))
   await page.waitForTimeout(400)
-  const scrolled = await page.locator('.content').evaluate((el) => el.scrollTop)
-  if (scrolled < 100) throw new Error(`the list barely scrolled (${scrolled}px)`)
   const topAfter = await page.locator('.topbar').boundingBox()
   if (topBefore.y !== topAfter.y) throw new Error(`header moved ${topBefore.y} -> ${topAfter.y}`)
+  const scrollY = await page.evaluate(() => window.scrollY)
+  if (scrollY < 100) throw new Error(`the page barely scrolled (${scrollY}px)`)
+  await page.evaluate(() => window.scrollTo(0, 0))
+  await page.waitForTimeout(300)
 })
 
 await step('the menu button reveals the drawer, off-screen until opened', async () => {

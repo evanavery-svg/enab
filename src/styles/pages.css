@@ -22,12 +22,14 @@
 .month-nav .month-label:hover { background: var(--surface-2); }
 
 /*
- * A plain flex child at the end of the page column (see `.main` /
- * `.content` in layout.css), not sticky or fixed — the same technique that
- * put the old bottom nav on the screen's true edge in a standalone PWA. The
- * scrollable list above it just shrinks to make room, so this bar always
- * sits on the true bottom edge without depending on the viewport height iOS
- * gets wrong in standalone mode.
+ * Desktop: a plain flex child at the end of `.content`'s internal scroll pane
+ * (see layout.css) — `.content` there is still its own bounded, scrolling box,
+ * so the bar just sits at the end of it.
+ *
+ * Phones: see the mobile override below — the whole page scrolls natively
+ * there, so the bar is `position: sticky; bottom: 0` instead, which keeps it
+ * pinned to the real viewport bottom without depending on any element being
+ * sized to an exact height.
  */
 .rta-wrap {
   flex: none;
@@ -36,6 +38,16 @@
   gap: 8px;
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
   background: var(--bg);
+}
+@media (max-width: 899px) {
+  .rta-wrap {
+    position: sticky;
+    bottom: 0;
+    z-index: 15;
+    /* A hair lighter than the page so scrolled-under rows read as behind it,
+       without needing a border. */
+    background: var(--surface);
+  }
 }
 
 .rta {
@@ -398,6 +410,11 @@
 
 .txn-group-date {
   position: sticky;
+  /* On desktop `.content` is its own scroll box directly below the (non-
+     sticky) topbar, so top:0 is already just below the header. On phones the
+     topbar is itself sticky in the same scrolling document (see the mobile
+     override below), so this needs to sit below it instead of colliding with
+     it. */
   top: 0;
   z-index: 2;
   padding: 6px 16px;
@@ -408,6 +425,9 @@
   text-transform: uppercase;
   color: var(--text-faint);
   border-bottom: 1px solid var(--border);
+}
+@media (max-width: 899px) {
+  .txn-group-date { top: calc(var(--header-h) + env(safe-area-inset-top)); }
 }
 
 .txn-row {

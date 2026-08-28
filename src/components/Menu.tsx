@@ -49,10 +49,15 @@ export function Popover({
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
     window.addEventListener('resize', onClose)
+    // The popover is `position: fixed`, so it does not track its anchor if
+    // the page scrolls under it (the document itself can scroll on a phone
+    // now) — close it rather than leave it floating disconnected.
+    window.addEventListener('scroll', onClose, true)
     return () => {
       document.removeEventListener('mousedown', onDown)
       document.removeEventListener('keydown', onKey)
       window.removeEventListener('resize', onClose)
+      window.removeEventListener('scroll', onClose, true)
     }
   }, [anchor, onClose])
 

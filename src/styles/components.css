@@ -243,7 +243,11 @@
 /* ---------------- Popover menu ---------------- */
 
 .menu {
-  position: absolute;
+  /* Fixed, not absolute: its position is computed from getBoundingClientRect
+     (viewport coordinates), and fixed is the positioning mode that matches
+     that space directly — including once the page itself can scroll on a
+     phone, where absolute would need extra math to stay correct. */
+  position: fixed;
   z-index: 70;
   min-width: 210px;
   padding: 5px;

@@ -31,6 +31,18 @@ export default function App() {
   // link inside it dismisses it.
   useEffect(() => closeNav(), [location.pathname, closeNav])
 
+  // Lock background scroll while the drawer is open. On a phone the page
+  // itself scrolls now, and the scrim only blocks touch/click — a wheel or
+  // keyboard scroll would otherwise still move the page underneath it.
+  useEffect(() => {
+    if (!navOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [navOpen])
+
   // Swipe from the left edge opens the drawer; swipe left while it is open
   // closes it. Touch only, so it never interferes with a mouse on desktop.
   useEffect(() => {

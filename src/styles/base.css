@@ -5,14 +5,21 @@
 }
 
 /*
- * Full-height shell with no scrolling document. The real height driver is
- * `.app`, which uses 100dvh (see layout.css) — the *dynamic* viewport height,
- * which tracks the actually-visible viewport. Everything inside is plain
- * flexbox flow with nothing position:fixed, so the header, scroll area and
- * bottom tab bar stack naturally from the true top edge to the true bottom
- * edge. That is the pattern that makes a flush bottom bar sit right in an iOS
- * standalone PWA, where `height: 100%` / `position: fixed` anchor to a taller
- * layout viewport and leave a band of dead space below the bar.
+ * Desktop: a full-height shell with no scrolling document — `.app` fills
+ * exactly 100dvh and each pane scrolls internally (see layout.css). That is
+ * intentional there: the sidebar should never scroll away.
+ *
+ * Phones get a different, more robust model (see the mobile override below):
+ * the *document itself* scrolls, the same way an ordinary webpage does, with
+ * the header and any bottom bar held in place with `position: sticky` rather
+ * than being sized to fit exactly inside a `100dvh` box. A precise 100dvh
+ * height is still correct in principle — dvh is meant to track the visible
+ * viewport — but iOS Safari can render it a frame late while its toolbar is
+ * animating in or out of view, and when a layout depends on every child
+ * summing exactly to that height, that momentary error shows up as a strip of
+ * bare background at the bottom. Native document scroll and `position:
+ * sticky` are driven by the browser's actual live viewport with no
+ * intermediate value to be briefly wrong, so they can't produce that gap.
  */
 html {
   height: 100%;
@@ -23,6 +30,14 @@ html {
      report what the device is actually giving us. */
   --probe-safe-top: env(safe-area-inset-top, 0px);
   --probe-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (max-width: 899px) {
+  html, body, #root {
+    height: auto;
+    min-height: 100%;
+    overflow: visible;
+  }
 }
 
 /*
@@ -46,6 +61,9 @@ body {
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
+}
+@media (max-width: 899px) {
+  body { overscroll-behavior-y: contain; }
 }
 
 #root {

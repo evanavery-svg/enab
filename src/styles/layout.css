@@ -1,15 +1,13 @@
 /* ------------------------------------------------------------------ *
- * App shell: sidebar on desktop, bottom tab bar on phones.
+ * App shell: docked sidebar + internally-scrolling panes on desktop, a
+ * naturally-scrolling page with a slide-in drawer on phones (see the mobile
+ * override at the bottom of this file, and the comment on `html` in
+ * base.css for why phones get a different model).
  * ------------------------------------------------------------------ */
 
 .app {
-  /*
-   * 100dvh — the dynamic viewport height — is the whole trick. It measures the
-   * visible viewport (unlike `height: 100%`, which resolves against a taller
-   * layout viewport in an iOS standalone PWA). Everything inside is plain flex
-   * flow with nothing position:fixed, so the bottom tab bar lands on the true
-   * bottom edge. 100vh is the fallback for browsers without dvh.
-   */
+  /* Desktop only past this point — the mobile override below replaces this
+     with a natural, unclipped height so the page can scroll normally. */
   height: 100vh;
   height: 100dvh;
   display: flex;
@@ -171,12 +169,34 @@
 
 @media (max-width: 899px) {
   /*
-   * On a phone the app is a single 100dvh column: the page's header (a plain
-   * flex child) sits on the true top edge and its scroll area fills the rest.
-   * There is no bottom chrome at all, so nothing depends on the screen's true
-   * bottom edge — the measurement iOS reports wrong in a standalone app.
+   * On a phone the document itself scrolls — the same as an ordinary webpage
+   * — instead of `.app` being locked to exactly 100dvh with each pane
+   * scrolling in its own clipped box. `.app`/`.main`/`.content` go back to
+   * natural, unclipped height; the header stays put with `position: sticky`
+   * instead of being sized to fit a precise viewport height. See the comment
+   * on `html` in base.css for why this is the more robust of the two models.
    */
-  .app { flex-direction: column; }
+  .app {
+    flex-direction: column;
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+  .main {
+    flex: none;
+    overflow: visible;
+  }
+  .content {
+    flex: none;
+    height: auto;
+    overflow: visible;
+    -webkit-overflow-scrolling: auto;
+  }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+  }
   .nav-menu-btn { display: inline-flex; }
 
   /*
