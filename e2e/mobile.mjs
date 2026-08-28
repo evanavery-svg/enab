@@ -1,6 +1,7 @@
 /**
  * Phone behaviour: the slide-in navigation drawer, a header pinned to the true
- * top edge, content reaching the true bottom edge with no bottom chrome, and
+ * top edge, the Ready to Assign bar sitting flush on the true bottom edge on
+ * Budget (with no bottom chrome at all on screens that don't have it), and
  * form fields never dipping under the 16px that makes iOS Safari zoom the page.
  *
  *   npm run build && npm run preview   # in one shell
@@ -35,20 +36,45 @@ await step('set up an account', async () => {
   await gotoSection(page, 'Budget')
 })
 
-await step('there is no bottom chrome — content reaches the true bottom edge', async () => {
+await step('the Ready to Assign bar sits flush on the true bottom edge', async () => {
+  // The bar is a plain flex child at the end of the page column (see
+  // .rta-wrap in layout — nothing position:fixed), so it should land exactly
+  // on the viewport's bottom edge instead of floating above a gap.
+  const gap = await page.evaluate(() => {
+    const bar = document.querySelector('.rta-wrap')
+    const r = bar.getBoundingClientRect()
+    return Math.round(window.innerHeight - r.bottom)
+  })
+  if (Math.abs(gap) > 2) throw new Error(`the RTA bar is ${gap}px off the bottom edge`)
+})
+
+await step('a screen without a bottom bar has no bottom chrome at all', async () => {
+  await gotoSection(page, 'Accounts')
   const shell = await page.evaluate(() => {
     const content = document.querySelector('.content')
     const r = content.getBoundingClientRect()
     return {
-      hasBottomBar: !!document.querySelector('.bottom-nav'),
-      // The scroll area runs all the way to the bottom of the viewport, so
-      // nothing hangs off a wrongly-measured bottom edge.
+      hasRtaBar: !!document.querySelector('.rta-wrap'),
       contentBottomGap: Math.round(window.innerHeight - r.bottom),
     }
   })
-  if (shell.hasBottomBar) throw new Error('a bottom bar is still present')
+  if (shell.hasRtaBar) throw new Error('the RTA bar leaked onto a screen that should not have it')
   if (Math.abs(shell.contentBottomGap) > 2)
     throw new Error(`content stops ${shell.contentBottomGap}px short of the bottom edge`)
+  await gotoSection(page, 'Budget')
+})
+
+await step('expanding the Ready to Assign detail keeps the bar on the bottom edge', async () => {
+  await page.locator('.rta').click()
+  await page.waitForTimeout(300)
+  if (!(await page.locator('.rta-detail').isVisible())) throw new Error('the detail panel did not open')
+  const gap = await page.evaluate(() => {
+    const bar = document.querySelector('.rta-wrap')
+    return Math.round(window.innerHeight - bar.getBoundingClientRect().bottom)
+  })
+  if (Math.abs(gap) > 2) throw new Error(`the bar drifted ${gap}px off the bottom edge while expanded`)
+  await page.locator('.rta').click()
+  await page.waitForTimeout(300)
 })
 
 await step('the header sits on the true top edge', async () => {

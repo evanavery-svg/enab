@@ -193,8 +193,6 @@ export default function BudgetPage() {
       </header>
 
       <div className="content">
-        <ReadyToAssignCard onMove={(opts) => setMoving(opts)} onAutoAssign={() => runQuickBudget('underfunded')} />
-
         <div className="budget-table">
           <div className="budget-head">
             <span>Category</span>
@@ -239,6 +237,8 @@ export default function BudgetPage() {
           <AppFooter />
         </div>
       </div>
+
+      <ReadyToAssignCard onMove={(opts) => setMoving(opts)} onAutoAssign={() => runQuickBudget('underfunded')} />
 
       {addingGroup && (
         <NamePrompt
@@ -296,21 +296,7 @@ function ReadyToAssignCard({
   const assignedAfter = budget.assignedAfter.get(month) ?? 0
 
   return (
-    <>
-      <div className={`rta-wrap${expanded ? ' open' : ''}`}>
-        <button className={`rta${tone}`} onClick={() => setExpanded((v) => !v)}>
-          <div>
-            <div className="rta-amount">{money(rta)}</div>
-            <div className="rta-label">
-              {rta > 0 ? 'Ready to Assign' : rta === 0 ? 'All money assigned' : 'You assigned more than you have'}
-            </div>
-          </div>
-          <span className="rta-chev">
-            <Icon name={expanded ? 'chevronUp' : 'chevronDown'} />
-          </span>
-        </button>
-      </div>
-
+    <div className={`rta-wrap${expanded ? ' open' : ''}`}>
       {expanded && (
         <div className="rta-detail">
           <div className="line">
@@ -356,7 +342,19 @@ function ReadyToAssignCard({
           </div>
         </div>
       )}
-    </>
+
+      <button className={`rta${tone}`} onClick={() => setExpanded((v) => !v)}>
+        <div>
+          <div className="rta-amount">{money(rta)}</div>
+          <div className="rta-label">
+            {rta > 0 ? 'Ready to Assign' : rta === 0 ? 'All money assigned' : 'You assigned more than you have'}
+          </div>
+        </div>
+        <span className="rta-chev">
+          <Icon name={expanded ? 'chevronDown' : 'chevronUp'} />
+        </span>
+      </button>
+    </div>
   )
 }
 
