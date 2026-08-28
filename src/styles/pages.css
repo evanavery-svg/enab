@@ -54,32 +54,39 @@
   margin: 0;
   padding: 16px;
   border-radius: var(--radius-lg);
-  /* The one orange-accented surface: an orange outline and an orange amount,
-     no fill. Everything else on the screen is black-and-white. */
+  /*
+   * With no colour to spend, the three states read as an escalation of
+   * weight instead: no border once there's nothing left to do, a bold
+   * outline while there's money to assign, a solid fill once you've gone
+   * negative — the one true alarm.
+   */
   background: transparent;
   color: var(--text);
   display: flex;
   align-items: center;
   gap: 14px;
   cursor: pointer;
-  border: 1.5px solid var(--accent);
+  border: 2px solid var(--text);
   text-align: left;
   width: 100%;
 }
 .rta:hover { filter: brightness(0.98); }
-.rta.zero { border-color: var(--border); }
-.rta.over .rta-amount { color: var(--accent-ink); }
+.rta.zero { border-color: transparent; }
+.rta.over { background: var(--text); color: var(--bg); border-color: var(--text); }
 .rta .rta-amount {
   font-size: 27px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
   line-height: 1.1;
-  color: var(--accent-ink);
+  color: var(--text);
 }
-.rta.zero .rta-amount { color: var(--text-dim); }
-.rta .rta-label { font-size: 13px; font-weight: 600; color: var(--text-dim); }
-.rta .rta-chev { margin-left: auto; color: var(--text-faint); }
+.rta.over .rta-amount { color: var(--bg); }
+.rta.zero .rta-amount { color: var(--text); }
+.rta .rta-label { font-size: 13px; font-weight: 600; color: var(--text); opacity: 0.7; }
+.rta.over .rta-label { color: var(--bg); opacity: 0.85; }
+.rta .rta-chev { margin-left: auto; color: var(--text); opacity: 0.6; }
+.rta.over .rta-chev { color: var(--bg); }
 
 .rta-detail {
   padding: 12px 16px;
@@ -260,9 +267,14 @@
   max-width: 100%;
 }
 .avail-pill.positive { background: transparent; color: var(--text); }
-/* Cash overspending is the one alarm on the screen, so it wears solid orange. */
-.avail-pill.overspent-cash { background: var(--accent); color: var(--accent-text); }
-.avail-pill.overspent-credit { background: transparent; color: var(--accent); }
+/*
+ * With no colour to spend, these read as an escalation of weight instead:
+ * plain text, a thin outline, a bold outline, a solid fill — so cash
+ * overspending (the one alarm on the screen) still stands apart from a
+ * merely-funded category even though both are now just black and white.
+ */
+.avail-pill.overspent-credit { background: transparent; color: var(--text); border: 1px solid var(--text); }
+.avail-pill.overspent-cash { background: transparent; color: var(--text); border: 2px solid var(--text); font-weight: 800; }
 .avail-pill.funded { background: var(--positive); color: var(--bg); }
 .avail-pill:hover { filter: brightness(0.95); }
 

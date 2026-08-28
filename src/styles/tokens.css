@@ -1,17 +1,18 @@
 /* ------------------------------------------------------------------ *
- * Design tokens — monochrome with a single orange accent.
+ * Design tokens — pure black and white. No accent hue.
  *
- * The look is deliberately restrained: near-black ink on near-white paper
- * (true black on OLED in dark mode), generous radii, soft depth, and orange
- * used sparingly for the one thing that matters on each screen. Light is the
- * base; dark and the explicit theme toggle override only the values.
+ * The look is deliberately restrained: black ink on white paper (inverted on
+ * OLED in dark mode), generous radii, soft depth. Everything that used to be
+ * "the accent colour" is now just black (white in dark mode) — the one thing
+ * that matters on a screen stands out through weight, fill and contrast, not
+ * hue. Light is the base; dark and the explicit theme toggle override only
+ * the values.
  * ------------------------------------------------------------------ */
 
 :root {
-  /* Three colours, no grey. Structure comes from whitespace and soft depth, not
-     lines or grey fills. Every surface is white (a whisper of elevation in dark
-     mode), text and the few remaining lines are the ink colour, and orange is
-     the single accent, spent only where it counts. */
+  /* Two colours. Structure comes from whitespace and soft depth, not lines or
+     grey fills. Every surface is white (a whisper of elevation in dark mode),
+     and text, lines and every "accent" are the ink colour. */
 
   /* Surfaces — all white; separation is drawn, not shaded */
   --bg: #ffffff;
@@ -27,27 +28,30 @@
   --border: #000000;
   --border-strong: #000000;
 
-  /* Accent — a single orange. `accent-soft` is that same orange at a whisper,
-     used only for the one highlighted surface per screen. */
-  --accent: #ff6a00;
-  --accent-ink: #ff6a00;
-  --accent-soft: rgba(255, 106, 0, 0.14);
+  /* "Accent" is now just the ink colour — solid black fills, black outlines,
+     black highlighted text. `accent-soft` is a faint black wash for the one
+     highlighted surface per screen. */
+  --accent: #000000;
+  --accent-ink: #000000;
+  --accent-soft: rgba(0, 0, 0, 0.08);
   --accent-text: #ffffff;
 
-  /* Money states within the three colours: "good" inverts to a solid black
-     chip, "attention" (overspent, negative, destructive) is orange. */
+  /* Money states: with no colour left to spend, "good" and "needs attention"
+     both read as solid ink — the pill styles that use these (see
+     .avail-pill in pages.css) tell them apart by fill vs. outline instead. */
   --positive: #000000;
   --positive-soft: #ffffff;
-  --warning: #ff6a00;
-  --warning-soft: rgba(255, 106, 0, 0.14);
-  --danger: #ff6a00;
-  --danger-soft: rgba(255, 106, 0, 0.14);
+  --warning: #000000;
+  --warning-soft: rgba(0, 0, 0, 0.08);
+  --danger: #000000;
+  --danger-soft: rgba(0, 0, 0, 0.08);
   --info: #000000;
   --info-soft: #ffffff;
   --neutral-pill: transparent;
   --neutral-pill-text: #000000;
 
-  /* Flags */
+  /* Flags — the one place colour survives: a user-chosen tag for organising
+     categories, not part of the app's own chrome. */
   --flag-red: #e0342c;
   --flag-orange: #ff6a00;
   --flag-yellow: #d7a70a;
@@ -55,16 +59,16 @@
   --flag-blue: #2f7fd1;
   --flag-purple: #8154c4;
 
-  /* Chart series — stay on palette: orange and black alternating, stepped by
-     opacity so neighbouring slices still separate. */
-  --c1: #ff6a00;
-  --c2: #000000;
-  --c3: rgba(255, 106, 0, 0.55);
-  --c4: rgba(0, 0, 0, 0.45);
-  --c5: rgba(255, 106, 0, 0.82);
-  --c6: rgba(0, 0, 0, 0.7);
-  --c7: rgba(255, 106, 0, 0.35);
-  --c8: rgba(0, 0, 0, 0.26);
+  /* Chart series — a monochrome ramp, stepped by opacity so neighbouring
+     series still separate without needing a second hue. */
+  --c1: #000000;
+  --c2: rgba(0, 0, 0, 0.78);
+  --c3: rgba(0, 0, 0, 0.6);
+  --c4: rgba(0, 0, 0, 0.46);
+  --c5: rgba(0, 0, 0, 0.85);
+  --c6: rgba(0, 0, 0, 0.34);
+  --c7: rgba(0, 0, 0, 0.24);
+  --c8: rgba(0, 0, 0, 0.16);
 
   /* Shape + motion */
   --radius-sm: 8px;
@@ -104,17 +108,17 @@
     --border: #ffffff;
     --border-strong: #ffffff;
 
-    --accent: #ff8a2e;
-    --accent-ink: #ff8a2e;
-    --accent-soft: rgba(255, 138, 46, 0.18);
+    --accent: #ffffff;
+    --accent-ink: #ffffff;
+    --accent-soft: rgba(255, 255, 255, 0.14);
     --accent-text: #000000;
 
     --positive: #ffffff;
     --positive-soft: #000000;
-    --warning: #ff8a2e;
-    --warning-soft: rgba(255, 138, 46, 0.18);
-    --danger: #ff8a2e;
-    --danger-soft: rgba(255, 138, 46, 0.18);
+    --warning: #ffffff;
+    --warning-soft: rgba(255, 255, 255, 0.14);
+    --danger: #ffffff;
+    --danger-soft: rgba(255, 255, 255, 0.14);
     --info: #ffffff;
     --info-soft: #000000;
     --neutral-pill: transparent;
@@ -127,14 +131,14 @@
     --flag-blue: #5f9ee0;
     --flag-purple: #a37fd6;
 
-    --c1: #ff8a2e;
-    --c2: #ffffff;
-    --c3: rgba(255, 138, 46, 0.62);
-    --c4: rgba(255, 255, 255, 0.5);
-    --c5: rgba(255, 138, 46, 0.85);
-    --c6: rgba(255, 255, 255, 0.75);
-    --c7: rgba(255, 138, 46, 0.4);
-    --c8: rgba(255, 255, 255, 0.3);
+    --c1: #ffffff;
+    --c2: rgba(255, 255, 255, 0.78);
+    --c3: rgba(255, 255, 255, 0.6);
+    --c4: rgba(255, 255, 255, 0.46);
+    --c5: rgba(255, 255, 255, 0.85);
+    --c6: rgba(255, 255, 255, 0.34);
+    --c7: rgba(255, 255, 255, 0.24);
+    --c8: rgba(255, 255, 255, 0.16);
 
     --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.6);
     --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.6);
@@ -157,17 +161,17 @@
   --border: #ffffff;
   --border-strong: #ffffff;
 
-  --accent: #ff8a2e;
-  --accent-ink: #ff8a2e;
-  --accent-soft: rgba(255, 138, 46, 0.18);
+  --accent: #ffffff;
+  --accent-ink: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.14);
   --accent-text: #000000;
 
   --positive: #ffffff;
   --positive-soft: #000000;
-  --warning: #ff8a2e;
-  --warning-soft: rgba(255, 138, 46, 0.18);
-  --danger: #ff8a2e;
-  --danger-soft: rgba(255, 138, 46, 0.18);
+  --warning: #ffffff;
+  --warning-soft: rgba(255, 255, 255, 0.14);
+  --danger: #ffffff;
+  --danger-soft: rgba(255, 255, 255, 0.14);
   --info: #ffffff;
   --info-soft: #000000;
   --neutral-pill: transparent;
@@ -180,14 +184,14 @@
   --flag-blue: #5f9ee0;
   --flag-purple: #a37fd6;
 
-  --c1: #ff8a2e;
-  --c2: #ffffff;
-  --c3: rgba(255, 138, 46, 0.62);
-  --c4: rgba(255, 255, 255, 0.5);
-  --c5: rgba(255, 138, 46, 0.85);
-  --c6: rgba(255, 255, 255, 0.75);
-  --c7: rgba(255, 138, 46, 0.4);
-  --c8: rgba(255, 255, 255, 0.3);
+  --c1: #ffffff;
+  --c2: rgba(255, 255, 255, 0.78);
+  --c3: rgba(255, 255, 255, 0.6);
+  --c4: rgba(255, 255, 255, 0.46);
+  --c5: rgba(255, 255, 255, 0.85);
+  --c6: rgba(255, 255, 255, 0.34);
+  --c7: rgba(255, 255, 255, 0.24);
+  --c8: rgba(255, 255, 255, 0.16);
 
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.6);
   --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.6);

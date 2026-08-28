@@ -68,7 +68,7 @@ await step('credit card purchase funds the payment category', async () => {
 })
 
 // ---- 6. overspend with cash -------------------------------------------
-await step('cash overspending turns the pill red', async () => {
+await step('cash overspending flags the pill', async () => {
   await addTransaction(page)
   await page.getByLabel('Amount', { exact: true }).fill('900')
   await page.getByLabel('Account', { exact: true }).selectOption({ label: 'Checking' })
