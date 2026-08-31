@@ -7,6 +7,8 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { ensureInitialized, runAutoEnter } from './db/actions'
 import { registerServiceWorker } from './pwa'
 import { installLayoutSettleFix } from './lib/viewport'
+import { checkUpcomingBills } from './lib/notifications'
+import { db } from './db/db'
 // Imported for its side effect: it must be listening before the browser
 // fires `beforeinstallprompt`, which happens early.
 import './lib/install'
@@ -55,6 +57,17 @@ async function boot() {
   await runAutoEnter().catch((error) => {
     console.error('Could not enter scheduled transactions:', error)
     return 0
+  })
+
+  // Check for upcoming bills and show notifications if enabled.
+  db.settings.get('settings').then((s) => {
+    if (!s?.notificationsEnabled) return
+    checkUpcomingBills(s.notifyDaysBefore ?? 1).catch(() => {})
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        checkUpcomingBills(s.notifyDaysBefore ?? 1).catch(() => {})
+      }
+    })
   })
 
   createRoot(container).render(

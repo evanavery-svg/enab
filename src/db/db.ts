@@ -1,6 +1,7 @@
 import Dexie, { type Table } from 'dexie'
 import type {
   Account,
+  Attachment,
   BudgetEntry,
   Category,
   CategoryGroup,
@@ -21,6 +22,7 @@ export class EnabDatabase extends Dexie {
   budgetEntries!: Table<BudgetEntry, string>
   monthNotes!: Table<MonthNote, string>
   settings!: Table<Settings, string>
+  attachments!: Table<Attachment, string>
 
   constructor(name = 'enab') {
     super(name)
@@ -35,6 +37,9 @@ export class EnabDatabase extends Dexie {
       budgetEntries: 'id, month, categoryId, [month+categoryId]',
       monthNotes: 'month',
       settings: 'id',
+    })
+    this.version(2).stores({
+      attachments: 'id, transactionId',
     })
   }
 }
@@ -53,6 +58,7 @@ export async function clearAllTables(database: EnabDatabase = db) {
     database.budgetEntries,
     database.monthNotes,
     database.settings,
+    database.attachments,
   ]
   await database.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()))

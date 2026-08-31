@@ -103,9 +103,7 @@ export default function ReportsPage() {
     [months, budget, spendingCategories],
   )
 
-  const netWorthSeries = useMemo(() => {
-    // Walk the months once, accumulating balances rather than re-scanning
-    // every transaction for each month.
+  const { netWorthSeries, accountBreakdown, netWorthChange } = useMemo(() => {
     const live = new Set(accounts.map((a) => a.id))
     const byMonth = new Map<MonthKey, Cents[]>()
     const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date))
@@ -127,10 +125,28 @@ export default function ReportsPage() {
       }
       byMonth.set(m, [assets + debts, assets, debts])
     }
-    return months.map((m) => ({
+    const nwSeries = months.map((m) => ({
       label: monthLabel(m, { short: true, withYear: false }),
       values: byMonth.get(m) ?? [0, 0, 0],
     }))
+
+    // Per-account current breakdown
+    const breakdown = accounts
+      .map((a) => ({
+        name: a.name,
+        balance: balancePerAccount.get(a.id) ?? 0,
+        type: a.type,
+        class: a.class,
+      }))
+      .filter((a) => a.balance !== 0)
+      .sort((a, b) => b.balance - a.balance)
+
+    // Net worth change over period
+    const first = nwSeries.length > 1 ? nwSeries[0].values[0] : 0
+    const last = nwSeries.length > 0 ? nwSeries[nwSeries.length - 1].values[0] : 0
+    const change = last - first
+
+    return { netWorthSeries: nwSeries, accountBreakdown: breakdown, netWorthChange: change }
   }, [months, transactions, accounts])
 
   const ageOfMoney = useMemo(() => computeAgeOfMoney(accounts, transactions), [accounts, transactions])
@@ -264,17 +280,47 @@ export default function ReportsPage() {
           <section className="card chart-card">
             <header>
               <h3>Net worth</h3>
-              <p>Everything you own, minus everything you owe</p>
+              <p>
+                Everything you own, minus everything you owe
+                {netWorthChange !== 0 && (
+                  <span style={{ marginLeft: 8, fontWeight: 650, color: netWorthChange > 0 ? 'var(--positive)' : 'var(--danger)' }}>
+                    {netWorthChange > 0 ? '+' : ''}{money(netWorthChange)} this period
+                  </span>
+                )}
+              </p>
             </header>
             <LineChart
               data={netWorthSeries}
               series={[{ name: 'Net worth' }, { name: 'Assets' }, { name: 'Debts' }]}
               format={compact}
+              area
             />
             <Legend
               series={[{ name: 'Net worth' }, { name: 'Assets' }, { name: 'Debts' }]}
               values={netWorthSeries.length ? netWorthSeries[netWorthSeries.length - 1].values.map((v) => money(v)) : undefined}
             />
+            {accountBreakdown.length > 0 && (
+              <div style={{ marginTop: 16 }}>
+                <h4 style={{ fontSize: 13, fontWeight: 650, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.03em' }}>By account</h4>
+                <ul className="breakdown" style={{ fontSize: 13.5 }}>
+                  {accountBreakdown.map((a) => {
+                    const total = accountBreakdown.reduce((s, x) => s + Math.abs(x.balance), 0) || 1
+                    const pct = Math.abs(a.balance) / total
+                    return (
+                      <li key={a.name}>
+                        <span className="label truncate">{a.name}</span>
+                        <span className="bar">
+                          <span className="progress">
+                            <span style={{ width: `${Math.round(pct * 100)}%`, background: a.balance >= 0 ? 'var(--c1)' : 'var(--c3)' }} />
+                          </span>
+                        </span>
+                        <span className={`val ${a.balance < 0 ? 'neg' : ''}`}>{money(a.balance)}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              </div>
+            )}
           </section>
         </div>
 

@@ -15,6 +15,13 @@ import { ensureInitialized, updateSettings } from '../db/actions'
 import { clearAllTables } from '../db/db'
 import { downloadFile, exportBackup, exportTransactionsCsv, importBackup } from '../lib/backup'
 import { today } from '../lib/dates'
+import {
+  requestNotificationPermission,
+  notificationsSupported,
+  notificationPermission,
+  checkUpcomingBills,
+} from '../lib/notifications'
+import { encryptPacket, decryptPacket, exportSyncPacket, mergeImport } from '../lib/sync'
 import type { Settings } from '../types'
 
 const DATE_FORMATS: { value: Settings['dateFormat']; label: string }[] = [
@@ -65,8 +72,74 @@ export default function SettingsPage() {
     }
   }
   const [pendingRestore, setPendingRestore] = useState<string | null>(null)
+  const syncFileRef = useRef<HTMLInputElement>(null)
+  const [syncing, setSyncing] = useState(false)
 
   const set = (patch: Partial<Settings>) => updateSettings(patch)
+
+  async function toggleNotifications(enable: boolean) {
+    if (enable) {
+      const granted = await requestNotificationPermission()
+      if (!granted) {
+        toast('Notification permission was denied by the browser', { tone: 'danger' })
+        return
+      }
+      await set({ notificationsEnabled: true, notifyDaysBefore: settings.notifyDaysBefore ?? 1 })
+      const count = await checkUpcomingBills(settings.notifyDaysBefore ?? 1)
+      if (count > 0) toast(`${count} upcoming bill${count === 1 ? '' : 's'} notified`)
+      else toast('Bill reminders enabled')
+    } else {
+      await set({ notificationsEnabled: false })
+      toast('Bill reminders disabled')
+    }
+  }
+
+  async function doSyncExport() {
+    const passphrase = settings.syncPassphrase
+    if (!passphrase) {
+      toast('Set a sync passphrase first', { tone: 'danger' })
+      return
+    }
+    setSyncing(true)
+    try {
+      const packet = await exportSyncPacket()
+      const encrypted = await encryptPacket(packet, passphrase)
+      const blob = new Blob([encrypted], { type: 'application/octet-stream' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `enab-sync-${today()}.enab`
+      document.body.appendChild(link)
+      link.click()
+      link.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+      toast('Sync file exported')
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Export failed', { tone: 'danger' })
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  async function doSyncImport(file: File) {
+    const passphrase = settings.syncPassphrase
+    if (!passphrase) {
+      toast('Set a sync passphrase first', { tone: 'danger' })
+      return
+    }
+    setSyncing(true)
+    try {
+      const buffer = await file.arrayBuffer()
+      const packet = await decryptPacket(buffer, passphrase)
+      const result = await mergeImport(packet)
+      toast(`Synced: ${result.totalAdded} added, ${result.totalUpdated} updated`)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Import failed'
+      toast(msg.includes('decrypt') ? 'Wrong passphrase or corrupt file' : msg, { tone: 'danger' })
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   async function doExport() {
     const backup = await exportBackup()
@@ -252,6 +325,101 @@ export default function SettingsPage() {
                   onChange={(e) => set({ lockReconciled: e.target.checked })}
                 />
               </SettingsRow>
+            </div>
+          </div>
+
+          {notificationsSupported() && (
+            <div className="settings-group">
+              <h3>Bill reminders</h3>
+              <div className="card">
+                <SettingsRow
+                  label="Notify about upcoming bills"
+                  hint={
+                    notificationPermission() === 'denied'
+                      ? 'Notifications are blocked by your browser. Allow them in your browser settings to enable this.'
+                      : 'Get a notification when a scheduled transaction is coming due.'
+                  }
+                  compact
+                >
+                  <input
+                    type="checkbox"
+                    className="toggle"
+                    checked={!!settings.notificationsEnabled}
+                    disabled={notificationPermission() === 'denied'}
+                    onChange={(e) => toggleNotifications(e.target.checked)}
+                  />
+                </SettingsRow>
+                {settings.notificationsEnabled && (
+                  <SettingsRow label="Days before" hint="How many days ahead to remind you">
+                    <select
+                      className="select"
+                      value={settings.notifyDaysBefore ?? 1}
+                      onChange={(e) => set({ notifyDaysBefore: Number(e.target.value) })}
+                    >
+                      <option value={0}>Same day</option>
+                      <option value={1}>1 day before</option>
+                      <option value={2}>2 days before</option>
+                      <option value={3}>3 days before</option>
+                      <option value={7}>1 week before</option>
+                    </select>
+                  </SettingsRow>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="settings-group">
+            <h3>Sync between devices</h3>
+            <div className="card">
+              <SettingsRow
+                label="Sync passphrase"
+                hint="Set the same passphrase on all devices. The sync file is encrypted with it."
+              >
+                <input
+                  className="input"
+                  type="password"
+                  placeholder="Shared secret"
+                  value={settings.syncPassphrase ?? ''}
+                  onChange={(e) => set({ syncPassphrase: e.target.value })}
+                />
+              </SettingsRow>
+              <SettingsRow
+                label="Export sync file"
+                hint="Download an encrypted snapshot to share with another device via AirDrop, email, or any file transfer."
+                compact
+              >
+                <button
+                  className="btn btn-sm"
+                  onClick={doSyncExport}
+                  disabled={syncing || !settings.syncPassphrase}
+                >
+                  <Icon name="share" size={15} /> {syncing ? 'Working…' : 'Export'}
+                </button>
+              </SettingsRow>
+              <SettingsRow
+                label="Import sync file"
+                hint="Merges data from another device. New records are added; newer versions of existing records replace older ones."
+                compact
+              >
+                <button
+                  className="btn btn-sm"
+                  onClick={() => syncFileRef.current?.click()}
+                  disabled={syncing || !settings.syncPassphrase}
+                >
+                  <Icon name="sync" size={15} /> {syncing ? 'Working…' : 'Import'}
+                </button>
+              </SettingsRow>
+              <input
+                ref={syncFileRef}
+                type="file"
+                accept=".enab"
+                hidden
+                onChange={async (e) => {
+                  const file = e.target.files?.[0]
+                  if (file) await doSyncImport(file)
+                  e.target.value = ''
+                }}
+              />
             </div>
           </div>
 

@@ -7,6 +7,7 @@ import type {
   Account,
   AccountClass,
   AccountType,
+  Attachment,
   Category,
   Cents,
   ClearedStatus,
@@ -774,4 +775,31 @@ export async function runAutoEnter(asOf: ISODate = today()): Promise<number> {
     }
   }
   return entered
+}
+
+/* ------------------------------------------------------------------ */
+/* Attachments                                                         */
+/* ------------------------------------------------------------------ */
+
+export async function addAttachment(transactionId: Id, file: File): Promise<Id> {
+  const id = uid('att')
+  const attachment: Attachment = {
+    id,
+    transactionId,
+    name: file.name,
+    type: file.type,
+    size: file.size,
+    data: file,
+    createdAt: new Date().toISOString(),
+  }
+  await db.attachments.put(attachment)
+  return id
+}
+
+export async function deleteAttachment(id: Id): Promise<void> {
+  await db.attachments.delete(id)
+}
+
+export async function getAttachments(transactionId: Id): Promise<Attachment[]> {
+  return db.attachments.where('transactionId').equals(transactionId).toArray()
 }

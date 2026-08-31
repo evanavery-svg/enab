@@ -274,6 +274,26 @@ export interface Settings {
   pinHash?: string
   /** Set once the "add to Home Screen" guide has been shown. */
   installGuideSeenAt?: string
+  /** Browser notifications for upcoming scheduled transactions. */
+  notificationsEnabled?: boolean
+  /** How many days before a scheduled transaction to notify. */
+  notifyDaysBefore?: number
+  /** Passphrase for encrypted sync export (never leaves the device). */
+  syncPassphrase?: string
+  createdAt: string
+}
+
+/* ------------------------------------------------------------------ */
+/* Attachments                                                         */
+/* ------------------------------------------------------------------ */
+
+export interface Attachment {
+  id: Id
+  transactionId: Id
+  name: string
+  type: string
+  size: number
+  data: Blob
   createdAt: string
 }
 

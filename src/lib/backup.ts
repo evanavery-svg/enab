@@ -2,6 +2,7 @@ import { db, clearAllTables } from '../db/db'
 import { toCsv } from './csv'
 import type {
   Account,
+  Attachment,
   BudgetEntry,
   Category,
   CategoryGroup,
@@ -12,7 +13,17 @@ import type {
   Transaction,
 } from '../types'
 
-export const BACKUP_VERSION = 1
+export const BACKUP_VERSION = 2
+
+interface SerializedAttachment {
+  id: string
+  transactionId: string
+  name: string
+  type: string
+  size: number
+  data: string
+  createdAt: string
+}
 
 export interface Backup {
   app: 'enab'
@@ -27,10 +38,27 @@ export interface Backup {
   budgetEntries: BudgetEntry[]
   monthNotes: MonthNote[]
   settings: Settings[]
+  attachments?: SerializedAttachment[]
+}
+
+async function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve((reader.result as string).split(',')[1])
+    reader.onerror = reject
+    reader.readAsDataURL(blob)
+  })
+}
+
+function base64ToBlob(b64: string, type: string): Blob {
+  const binary = atob(b64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i)
+  return new Blob([bytes], { type })
 }
 
 export async function exportBackup(): Promise<Backup> {
-  const [accounts, categoryGroups, categories, payees, transactions, scheduled, budgetEntries, monthNotes, settings] =
+  const [accounts, categoryGroups, categories, payees, transactions, scheduled, budgetEntries, monthNotes, settings, rawAttachments] =
     await Promise.all([
       db.accounts.toArray(),
       db.categoryGroups.toArray(),
@@ -41,7 +69,20 @@ export async function exportBackup(): Promise<Backup> {
       db.budgetEntries.toArray(),
       db.monthNotes.toArray(),
       db.settings.toArray(),
+      db.attachments.toArray(),
     ])
+
+  const attachments: SerializedAttachment[] = await Promise.all(
+    rawAttachments.map(async (a) => ({
+      id: a.id,
+      transactionId: a.transactionId,
+      name: a.name,
+      type: a.type,
+      size: a.size,
+      data: await blobToBase64(a.data),
+      createdAt: a.createdAt,
+    })),
+  )
 
   return {
     app: 'enab',
@@ -56,6 +97,7 @@ export async function exportBackup(): Promise<Backup> {
     budgetEntries,
     monthNotes,
     settings,
+    attachments,
   }
 }
 
@@ -77,7 +119,7 @@ export async function importBackup(raw: string): Promise<{ transactions: number;
   await clearAllTables()
   await db.transaction(
     'rw',
-    [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes, db.settings],
+    [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes, db.settings, db.attachments],
     async () => {
       await db.accounts.bulkPut(parsed.accounts ?? [])
       await db.categoryGroups.bulkPut(parsed.categoryGroups ?? [])
@@ -88,6 +130,18 @@ export async function importBackup(raw: string): Promise<{ transactions: number;
       await db.budgetEntries.bulkPut(parsed.budgetEntries ?? [])
       await db.monthNotes.bulkPut(parsed.monthNotes ?? [])
       await db.settings.bulkPut(parsed.settings ?? [])
+      if (parsed.attachments?.length) {
+        const hydrated: Attachment[] = parsed.attachments.map((a) => ({
+          id: a.id,
+          transactionId: a.transactionId,
+          name: a.name,
+          type: a.type,
+          size: a.size,
+          data: base64ToBlob(a.data, a.type),
+          createdAt: a.createdAt,
+        }))
+        await db.attachments.bulkPut(hydrated)
+      }
     },
   )
 

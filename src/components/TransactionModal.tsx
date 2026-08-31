@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Modal, ConfirmDialog } from './Modal'
 import { AmountInput, ComboBox, Field } from './Fields'
 import { CategorySelect } from './CategorySelect'
@@ -6,8 +6,11 @@ import { Icon } from './Icon'
 import { useData } from '../hooks/useData'
 import { useUi, toast } from '../state/ui'
 import {
+  addAttachment,
   createTransaction,
+  deleteAttachment,
   deleteTransaction,
+  getAttachments,
   scheduleFromTransaction,
   updateTransaction,
 } from '../db/actions'
@@ -15,7 +18,7 @@ import { FREQUENCIES, FREQUENCY_LABELS } from '../budget/recurrence'
 import { today } from '../lib/dates'
 import { splitEvenly } from '../lib/money'
 import { uid } from '../lib/id'
-import type { Cents, FlagColor, Frequency, Id, SubTransaction } from '../types'
+import type { Attachment, Cents, FlagColor, Frequency, Id, SubTransaction } from '../types'
 
 const FLAGS: { color: Exclude<FlagColor, null>; label: string }[] = [
   { color: 'red', label: 'Red' },
@@ -58,6 +61,9 @@ export function TransactionModal() {
   const [repeat, setRepeat] = useState<Frequency>('once')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const attachRef = useRef<HTMLInputElement>(null)
 
   const isSplit = legs.length > 0
   const locked = existing?.cleared === 'reconciled'
@@ -67,6 +73,11 @@ export function TransactionModal() {
     const p = payees.find((x) => x.id === existing.payeeId)
     setPayeeName(p?.name ?? '')
   }, [existing, payees])
+
+  useEffect(() => {
+    if (!existing) return
+    getAttachments(existing.id).then(setAttachments)
+  }, [existing])
 
   const payeeOptions = useMemo(() => {
     const regular = payees
@@ -153,16 +164,15 @@ export function TransactionModal() {
           ...payload,
           cleared: existing.cleared === 'reconciled' ? 'reconciled' : payload.cleared,
         })
+        for (const f of pendingFiles) await addAttachment(existing.id, f)
         toast('Transaction saved')
       } else {
         const txnId = await createTransaction({
           ...payload,
           subtransactions: isSplit ? legs.map(({ id: _drop, ...rest }) => rest) : undefined,
         })
+        for (const f of pendingFiles) await addAttachment(txnId, f)
         if (repeat !== 'once') {
-          // Built from the saved transaction so the schedule always matches
-          // what was actually recorded, and starts at the next occurrence
-          // rather than repeating the one just entered.
           await scheduleFromTransaction(txnId, repeat)
           toast('Transaction added and scheduled to repeat')
         } else {
@@ -328,6 +338,62 @@ export function TransactionModal() {
         <Field label="Memo">
           <input className="input" value={memo} onChange={(e) => setMemo(e.target.value)} />
         </Field>
+
+        <div style={{ marginBottom: 14 }}>
+          <span className="label" style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-dim)' }}>
+            Attachments
+          </span>
+          {(attachments.length > 0 || pendingFiles.length > 0) && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+              {attachments.map((a) => (
+                <div key={a.id} className="attachment-chip">
+                  <Icon name={a.type.startsWith('image/') ? 'image' : 'paperclip'} size={13} />
+                  <span className="truncate" style={{ maxWidth: 120 }}>{a.name}</span>
+                  <button
+                    className="icon-btn"
+                    style={{ width: 20, height: 20 }}
+                    aria-label="Remove"
+                    onClick={async () => {
+                      await deleteAttachment(a.id)
+                      setAttachments((prev) => prev.filter((x) => x.id !== a.id))
+                    }}
+                  >
+                    <Icon name="x" size={12} />
+                  </button>
+                </div>
+              ))}
+              {pendingFiles.map((f, i) => (
+                <div key={i} className="attachment-chip pending">
+                  <Icon name={f.type.startsWith('image/') ? 'image' : 'paperclip'} size={13} />
+                  <span className="truncate" style={{ maxWidth: 120 }}>{f.name}</span>
+                  <button
+                    className="icon-btn"
+                    style={{ width: 20, height: 20 }}
+                    aria-label="Remove"
+                    onClick={() => setPendingFiles((prev) => prev.filter((_, j) => j !== i))}
+                  >
+                    <Icon name="x" size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <button className="btn btn-sm btn-ghost" onClick={() => attachRef.current?.click()}>
+            <Icon name="paperclip" size={15} /> Add receipt or note
+          </button>
+          <input
+            ref={attachRef}
+            type="file"
+            accept="image/*,.pdf,.txt,.md"
+            multiple
+            hidden
+            onChange={(e) => {
+              const files = e.target.files
+              if (files) setPendingFiles((prev) => [...prev, ...Array.from(files)])
+              e.target.value = ''
+            }}
+          />
+        </div>
 
         {!existing && (
           <Field label="Repeat" hint={repeat === 'once' ? undefined : 'ENAB will enter this for you automatically.'}>
