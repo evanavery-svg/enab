@@ -1,7 +1,19 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db, clearAllTables } from '../../db/db'
-import { createAccount, createTransaction, ensureInitialized, updateTransaction } from '../../db/actions'
+import {
+  addAttachment,
+  createAccount,
+  deleteAttachment,
+  getAttachments,
+  createTransaction,
+  deleteTransaction,
+  ensureInitialized,
+  setAssigned,
+  setMonthNote,
+  updateTransaction,
+} from '../../db/actions'
+import { INFLOW_CATEGORY_ID } from '../../db/seed'
 import { decryptPacket, encryptPacket, exportSyncPacket, mergeImport } from '../sync'
 
 beforeEach(async () => {
@@ -109,6 +121,72 @@ describe('mergeImport', () => {
     const second = await mergeImport(packet)
     expect(second.totalAdded).toBe(0)
     expect(second.totalUpdated).toBe(0)
+  })
+
+  it('propagates a deleted transaction', async () => {
+    const { id } = await seedTransaction('coffee')
+    await deleteTransaction(id)
+    const packet = await exportSyncPacket()
+
+    await clearAllTables()
+    await ensureInitialized()
+    await createAccount({ name: 'Checking', type: 'checking', startingBalance: 100_000 })
+    await mergeImport(packet)
+
+    expect((await db.transactions.get(id))?.deleted).toBe(true)
+  })
+
+  it('propagates un-assigning a category back to zero', async () => {
+    // Assignments are money. If the other device cleared one and the merge
+    // cannot see that, the old amount silently reappears and the budget is wrong.
+    await setAssigned('2026-03', INFLOW_CATEGORY_ID, 50_000)
+    const withMoney = await exportSyncPacket()
+
+    await setAssigned('2026-03', INFLOW_CATEGORY_ID, 0)
+    const cleared = await exportSyncPacket()
+
+    // Start from the state that still has the money, then sync the clearing.
+    await clearAllTables()
+    await ensureInitialized()
+    await mergeImport(withMoney)
+    expect((await db.budgetEntries.toArray()).find((e) => e.assigned === 50_000)).toBeTruthy()
+
+    await mergeImport(cleared)
+    const entry = await db.budgetEntries.get(`2026-03:${INFLOW_CATEGORY_ID}`)
+    expect(entry?.assigned ?? 0).toBe(0)
+  })
+
+  it('propagates a cleared month note', async () => {
+    await setMonthNote('2026-03', 'save for tires')
+    const withNote = await exportSyncPacket()
+
+    await setMonthNote('2026-03', '')
+    const cleared = await exportSyncPacket()
+
+    await clearAllTables()
+    await ensureInitialized()
+    await mergeImport(withNote)
+    expect((await db.monthNotes.get('2026-03'))?.note).toBe('save for tires')
+
+    await mergeImport(cleared)
+    expect((await db.monthNotes.get('2026-03'))?.note ?? '').toBe('')
+  })
+
+  it('carries a receipt across, then carries its deletion across too', async () => {
+    const { id } = await seedTransaction('coffee')
+    const attId = await addAttachment(id, new File(['receipt'], 'r.txt', { type: 'text/plain' }))
+    const withReceipt = await exportSyncPacket()
+
+    await deleteAttachment(attId)
+    const afterDelete = await exportSyncPacket()
+
+    await clearAllTables()
+    await ensureInitialized()
+    await mergeImport(withReceipt)
+    expect(await getAttachments(id)).toHaveLength(1)
+
+    await mergeImport(afterDelete)
+    expect(await getAttachments(id)).toHaveLength(0)
   })
 
   it('does not restamp merged records as locally edited', async () => {

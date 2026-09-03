@@ -11,6 +11,8 @@ export interface SerializedAttachment {
   size: number
   data: string
   createdAt: string
+  /** A deleted attachment travels as a marker with no bytes. */
+  deleted?: boolean
 }
 
 /** `btoa` takes a string, and spreading a whole file into one blows the stack. */

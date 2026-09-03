@@ -306,10 +306,15 @@ export async function reorderCategoryGroups(orderedIds: Id[]): Promise<void> {
 
 export const entryId = (month: MonthKey, categoryId: Id) => `${month}:${categoryId}`
 
+/**
+ * Clearing an assignment keeps a zero row rather than deleting it. The engine
+ * reads a missing entry and a zero entry the same way, but sync cannot: a row
+ * that simply vanished is indistinguishable from one the other device never
+ * had, so a hard delete came back as the old amount on the next merge.
+ */
 export async function setAssigned(month: MonthKey, categoryId: Id, assigned: Cents): Promise<void> {
   const id = entryId(month, categoryId)
-  if (assigned === 0) await db.budgetEntries.delete(id)
-  else await db.budgetEntries.put({ id, month, categoryId, assigned })
+  await db.budgetEntries.put({ id, month, categoryId, assigned })
 }
 
 export async function adjustAssigned(month: MonthKey, categoryId: Id, delta: Cents): Promise<void> {
@@ -345,9 +350,9 @@ export async function moveMoney(
   })
 }
 
+/** Kept as an empty row rather than deleted, for the reason in `setAssigned`. */
 export async function setMonthNote(month: MonthKey, note: string): Promise<void> {
-  if (note.trim()) await db.monthNotes.put({ month, note })
-  else await db.monthNotes.delete(month)
+  await db.monthNotes.put({ month, note: note.trim() })
 }
 
 /* ------------------------------------------------------------------ */
@@ -422,6 +427,12 @@ export interface TransactionInput {
   transferAccountId?: Id | null
   subtransactions?: Omit<SubTransaction, 'id'>[]
   scheduledId?: Id
+  /**
+   * Force the row's id instead of generating one. Used for occurrences of a
+   * schedule, so the same bill entered on two devices lands on one id and
+   * merges into a single transaction instead of a duplicate.
+   */
+  id?: Id
 }
 
 /**
@@ -430,7 +441,7 @@ export interface TransactionInput {
  */
 export async function createTransaction(input: TransactionInput): Promise<Id> {
   const now = new Date().toISOString()
-  const id = uid('txn')
+  const id = input.id ?? uid('txn')
   const month = monthOf(input.date)
 
   return db.transaction('rw', db.transactions, db.payees, db.accounts, db.categories, async () => {
@@ -462,7 +473,8 @@ export async function createTransaction(input: TransactionInput): Promise<Id> {
         db.accounts.get(input.accountId),
         db.accounts.get(input.transferAccountId),
       ])
-      const siblingId = uid('txn')
+      // Derived from the caller's id so a forced id keeps both legs stable.
+      const siblingId = input.id ? `${input.id}~far` : uid('txn')
       base.transferAccountId = input.transferAccountId
       base.transferTransactionId = siblingId
       base.payeeId = await transferPayeeId(input.transferAccountId)
@@ -509,8 +521,16 @@ export async function updateTransaction(id: Id, patch: Partial<TransactionInput>
       payeeId = await findOrCreatePayeeId(patch.payeeName)
     }
 
+    // Moving a transaction to the account it already transfers to would make
+    // it a transfer to itself, so that one change is ignored.
+    const movingTo =
+      patch.accountId && patch.accountId !== existing.accountId && patch.accountId !== existing.transferAccountId
+        ? patch.accountId
+        : undefined
+
     const next: Transaction = {
       ...existing,
+      ...(movingTo ? { accountId: movingTo } : {}),
       ...('date' in patch && patch.date ? { date: patch.date, month: monthOf(patch.date) } : {}),
       ...('amount' in patch && patch.amount !== undefined ? { amount: patch.amount } : {}),
       ...('memo' in patch ? { memo: patch.memo ?? '' } : {}),
@@ -543,6 +563,9 @@ export async function updateTransaction(id: Id, patch: Partial<TransactionInput>
           amount: -next.amount,
           memo: next.memo,
           flag: next.flag,
+          // The far side stays where it is, but has to point at wherever this
+          // side moved to, or the pair no longer describes the same transfer.
+          ...(movingTo ? { transferAccountId: movingTo } : {}),
         })
       }
     }
@@ -554,12 +577,20 @@ export async function updateTransaction(id: Id, patch: Partial<TransactionInput>
 }
 
 export async function deleteTransaction(id: Id): Promise<void> {
-  await db.transaction('rw', db.transactions, async () => {
+  await db.transaction('rw', db.transactions, db.attachments, async () => {
     const t = await db.transactions.get(id)
     if (!t) return
     await db.transactions.update(id, { deleted: true })
     if (t.transferTransactionId) {
       await db.transactions.update(t.transferTransactionId, { deleted: true })
+    }
+    // Transactions are only ever soft-deleted, but their attachments are real
+    // bytes. Left behind they are unreachable and still counted against the
+    // browser's storage quota, and still copied into every backup. Tombstoning
+    // rather than dropping them means the other device reclaims them too.
+    const orphans = await db.attachments.where('transactionId').equals(id).toArray()
+    for (const a of orphans) {
+      if (!a.deleted) await db.attachments.update(a.id, { deleted: true, data: new Blob([]), size: 0 })
     }
   })
 }
@@ -737,6 +768,10 @@ export async function enterScheduled(id: Id, date?: ISODate): Promise<Id | null>
     transferAccountId: s.transferAccountId ?? null,
     subtransactions: s.subtransactions?.map(({ id: _drop, ...rest }) => rest),
     scheduledId: s.id,
+    // One occurrence, one id, on every device. Both a laptop and a phone will
+    // auto-enter the same bill while offline; without this they each invent an
+    // id and the next sync leaves the budget paying that bill twice.
+    id: `auto:${s.id}:${when}`,
   })
 
   await advanceSchedule(s)
@@ -796,10 +831,15 @@ export async function addAttachment(transactionId: Id, file: File): Promise<Id> 
   return id
 }
 
+/**
+ * Keeps a tombstone rather than dropping the row, so the deletion reaches the
+ * other device. The bytes go immediately; only the marker is worth syncing.
+ */
 export async function deleteAttachment(id: Id): Promise<void> {
-  await db.attachments.delete(id)
+  await db.attachments.update(id, { deleted: true, data: new Blob([]), size: 0 })
 }
 
 export async function getAttachments(transactionId: Id): Promise<Attachment[]> {
-  return db.attachments.where('transactionId').equals(transactionId).toArray()
+  const rows = await db.attachments.where('transactionId').equals(transactionId).toArray()
+  return rows.filter((a) => !a.deleted)
 }

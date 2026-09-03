@@ -305,6 +305,11 @@ export interface Attachment {
   size: number
   data: Blob
   createdAt: string
+  /**
+   * Soft delete, so removing a receipt survives a sync. The blob is emptied
+   * at the same time — a tombstone should not keep carrying the bytes.
+   */
+  deleted?: boolean
 }
 
 /* ------------------------------------------------------------------ */

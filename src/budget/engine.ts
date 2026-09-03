@@ -186,6 +186,9 @@ export function computeBudget(input: BudgetInput): BudgetResult {
 
   const entriesByMonth = new Map<MonthKey, Map<Id, Cents>>()
   for (const e of entries) {
+    // A zero row is a cleared assignment kept so the change can sync. It means
+    // the same as no row at all, so it must not stretch the budget's months.
+    if (e.assigned === 0) continue
     if (!earliest || e.month < earliest) earliest = e.month
     if (!latest || e.month > latest) latest = e.month
     let inner = entriesByMonth.get(e.month)

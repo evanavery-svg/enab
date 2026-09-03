@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db, clearAllTables } from '../db'
 import {
   createAccount,
+  addAttachment,
   createTransaction,
+  deleteTransaction,
+  enterScheduled,
+  getAttachments,
   ensureInitialized,
   reconcileAccount,
   runAutoEnter,
   scheduleFromTransaction,
+  updateTransaction,
 } from '../actions'
 import { INFLOW_CATEGORY_ID } from '../seed'
 import { addMonthsToDate, today } from '../../lib/dates'
@@ -133,5 +138,74 @@ describe('reconcileAccount', () => {
     const result = await reconcileAccount(accountId, 97_500, '2026-03-03')
     expect(result.adjustment).toBe(0)
     expect(await db.transactions.count()).toBe(2)
+  })
+})
+
+describe('updateTransaction', () => {
+  it('moves a transaction to a different account', async () => {
+    const checking = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 100_000 })
+    const savings = await createAccount({ name: 'Savings', type: 'savings', startingBalance: 0 })
+    const id = await createTransaction({ accountId: checking, date: today(), amount: -2_500, memo: 'coffee' })
+
+    await updateTransaction(id, { accountId: savings })
+
+    expect((await db.transactions.get(id))?.accountId).toBe(savings)
+  })
+
+  it('repoints the far side when a transfer changes account', async () => {
+    const checking = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 100_000 })
+    const savings = await createAccount({ name: 'Savings', type: 'savings', startingBalance: 0 })
+    const other = await createAccount({ name: 'Other', type: 'checking', startingBalance: 0 })
+    const id = await createTransaction({
+      accountId: checking,
+      date: today(),
+      amount: -5_000,
+      transferAccountId: savings,
+    })
+
+    await updateTransaction(id, { accountId: other })
+
+    const moved = (await db.transactions.get(id))!
+    const sibling = (await db.transactions.get(moved.transferTransactionId!))!
+    expect(moved.accountId).toBe(other)
+    // The far side still lives in Savings, but must now point back at Other.
+    expect(sibling.accountId).toBe(savings)
+    expect(sibling.transferAccountId).toBe(other)
+  })
+})
+
+describe('auto-entered occurrences', () => {
+  it('gives the same occurrence the same id on every device', async () => {
+    // Two devices catching up offline must not each invent an id, or the next
+    // sync leaves the budget paying the same bill twice.
+    const accountId = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 100_000 })
+    const txnId = await createTransaction({ accountId, date: today(), amount: -1_500, memo: 'rent' })
+    const schedId = await scheduleFromTransaction(txnId, 'monthly', { autoEnter: true })
+    const sched = (await db.scheduled.get(schedId!))!
+
+    const first = await enterScheduled(sched.id, '2026-05-02')
+    await db.scheduled.update(sched.id, { nextDate: '2026-05-02' })
+    const again = await enterScheduled(sched.id, '2026-05-02')
+
+    expect(first).toBe(again)
+    const rows = (await db.transactions.toArray()).filter((t) => t.scheduledId === sched.id && !t.deleted)
+    expect(rows).toHaveLength(1)
+  })
+})
+
+describe('deleteTransaction', () => {
+  it('releases the attachment bytes and hides the receipts', async () => {
+    const accountId = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 100_000 })
+    const id = await createTransaction({ accountId, date: today(), amount: -2_500, memo: 'coffee' })
+    await addAttachment(id, new File(['receipt'], 'receipt.txt', { type: 'text/plain' }))
+
+    await deleteTransaction(id)
+
+    // A tombstone stays so the deletion can sync, but it carries no bytes.
+    expect(await getAttachments(id)).toHaveLength(0)
+    const row = (await db.attachments.toArray())[0]
+    expect(row.deleted).toBe(true)
+    expect(row.size).toBe(0)
+    expect(row.data.size).toBe(0)
   })
 })

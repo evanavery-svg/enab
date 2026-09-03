@@ -47,15 +47,18 @@ export async function exportBackup(): Promise<Backup> {
       db.attachments.toArray(),
     ])
 
+  // Deleted attachments are carried as bare markers so a restore doesn't
+  // resurrect a receipt, without bloating the file with bytes nobody wants.
   const attachments: SerializedAttachment[] = await Promise.all(
     rawAttachments.map(async (a) => ({
       id: a.id,
       transactionId: a.transactionId,
       name: a.name,
       type: a.type,
-      size: a.size,
-      data: await blobToBase64(a.data),
+      size: a.deleted ? 0 : a.size,
+      data: a.deleted ? '' : await blobToBase64(a.data),
       createdAt: a.createdAt,
+      deleted: a.deleted,
     })),
   )
 
@@ -116,9 +119,10 @@ export async function importBackup(raw: string): Promise<{ transactions: number;
             transactionId: a.transactionId,
             name: a.name,
             type: a.type,
-            size: a.size,
-            data: base64ToBlob(a.data, a.type),
+            size: a.deleted ? 0 : a.size,
+            data: a.deleted ? new Blob([]) : base64ToBlob(a.data, a.type),
             createdAt: a.createdAt,
+            deleted: a.deleted,
           }))
           await db.attachments.bulkPut(hydrated)
         }

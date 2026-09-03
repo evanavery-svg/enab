@@ -85,8 +85,9 @@ export async function exportSyncPacket(): Promise<SyncPacket> {
       name: a.name,
       type: a.type,
       size: a.size,
-      data: await blobToBase64(a.data),
+      data: a.deleted ? '' : await blobToBase64(a.data),
       createdAt: a.createdAt,
+      deleted: a.deleted,
     })),
   )
 
@@ -219,10 +220,16 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
   const entries = mergeRecords(localEntries, packet.budgetEntries ?? [], byId)
   const notes = mergeRecords(localMonthNotes, packet.monthNotes ?? [], (n) => n.month)
 
-  // Attachment blobs are immutable once written, so only genuinely new ones
-  // need decoding — that keeps a repeat sync from re-inflating every receipt.
-  const haveAttachment = new Set(localAttachments.map((a) => a.id))
-  const newAttachments = (packet.attachments ?? []).filter((a) => !haveAttachment.has(a.id))
+  // Attachment blobs never change once written, so an id we already hold needs
+  // no decoding — that keeps a repeat sync from re-inflating every receipt.
+  // The exception is a tombstone: a receipt deleted on the other device has to
+  // be deleted here too, and its bytes released.
+  const localAttachment = new Map(localAttachments.map((a) => [a.id, a]))
+  const incoming = packet.attachments ?? []
+  const newAttachments = incoming.filter((a) => !a.deleted && !localAttachment.has(a.id))
+  // Covers an id we hold live and one we have never seen: recording the
+  // tombstone either way stops an older packet from resurrecting the file.
+  const attachmentTombstones = incoming.filter((a) => a.deleted && !localAttachment.get(a.id)?.deleted)
 
   await preservingTimestamps(async () => {
     await db.transaction(
@@ -247,6 +254,20 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
               size: a.size,
               data: base64ToBlob(a.data, a.type),
               createdAt: a.createdAt,
+            })),
+          )
+        }
+        if (attachmentTombstones.length) {
+          await db.attachments.bulkPut(
+            attachmentTombstones.map((a) => ({
+              id: a.id,
+              transactionId: a.transactionId,
+              name: a.name,
+              type: a.type,
+              size: 0,
+              data: new Blob([]),
+              createdAt: a.createdAt,
+              deleted: true,
             })),
           )
         }
