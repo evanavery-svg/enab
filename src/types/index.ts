@@ -56,6 +56,8 @@ export interface Account {
   /** Only set for `credit` accounts: the linked payment category. */
   paymentCategoryId?: Id
   createdAt: string
+  /** Stamped on every write; sync uses it to decide which side is newer. */
+  updatedAt?: string
   deleted: boolean
 }
 
@@ -73,6 +75,7 @@ export interface CategoryGroup {
   isSystem?: boolean
   /** True for the hidden internal group holding Ready to Assign. */
   isInternal?: boolean
+  updatedAt?: string
   deleted: boolean
 }
 
@@ -88,6 +91,7 @@ export interface Category {
   /** True only for "Inflow: Ready to Assign". */
   isInflow?: boolean
   goal?: Goal
+  updatedAt?: string
   deleted: boolean
 }
 
@@ -142,6 +146,7 @@ export interface Payee {
   transferAccountId?: Id
   /** Remembered category for auto-fill on new transactions. */
   lastCategoryId?: Id
+  updatedAt?: string
   deleted: boolean
 }
 
@@ -188,6 +193,8 @@ export interface Transaction {
   /** Marks the immutable opening-balance transaction of an account. */
   isStartingBalance?: boolean
   createdAt: string
+  /** Stamped on every write; sync uses it to decide which side is newer. */
+  updatedAt?: string
   deleted: boolean
 }
 
@@ -226,6 +233,7 @@ export interface ScheduledTransaction {
   /** Automatically create the transaction when the date arrives. */
   autoEnter: boolean
   paused: boolean
+  updatedAt?: string
   deleted: boolean
 }
 
@@ -239,11 +247,13 @@ export interface BudgetEntry {
   month: MonthKey
   categoryId: Id
   assigned: Cents
+  updatedAt?: string
 }
 
 export interface MonthNote {
   month: MonthKey
   note: string
+  updatedAt?: string
 }
 
 /* ------------------------------------------------------------------ */

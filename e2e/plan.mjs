@@ -9,13 +9,30 @@ import { launch, step, finish } from './harness.mjs'
 
 const { browser, page, errors } = await launch()
 
+/**
+ * The six completed months before this one. The amounts below are fixed so
+ * every assertion is exact, but the dates have to move with the calendar:
+ * hard-coded months eventually drift far enough into the past that the
+ * detector correctly calls every subscription lapsed, and the suite fails for
+ * a reason that has nothing to do with the code under test.
+ */
+function recentMonths(count = 6) {
+  const now = new Date()
+  const out = []
+  for (let i = count; i >= 1; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    out.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`)
+  }
+  return out
+}
+
 /* Deliberately fixed, not random, so every assertion below is exact:
    fixed subscriptions, a variable bill, irregular shopping, one splurge,
    and one subscription that was cancelled. */
 function buildCsv() {
   const rows = [['Date', 'Description', 'Category', 'Outflow', 'Inflow']]
   const add = (d, p, c, out, inn = '') => rows.push([d, p, c, out, inn])
-  const months = ['2026-02', '2026-03', '2026-04', '2026-05', '2026-06', '2026-07']
+  const months = recentMonths(6)
   const electric = [88.4, 121.35, 96.1, 110.75, 92.2, 104.6]
   const groceryTotals = [420, 435, 410, 428, 415, 422]
 
@@ -31,10 +48,10 @@ function buildCsv() {
       add(`${m}-${day}`, 'Green Grocer', 'Groceries', (groceryTotals[i] * shares[k]).toFixed(2)),
     )
   })
-  // Cancelled after three months.
-  for (const m of ['2026-02', '2026-03', '2026-04']) add(`${m}-25`, 'Old Magazine', 'Subscriptions', '12.50')
+  // Cancelled after the first three months.
+  for (const m of months.slice(0, 3)) add(`${m}-25`, 'Old Magazine', 'Subscriptions', '12.50')
   // A one-off that must not set the grocery budget.
-  add('2026-05-16', 'Green Grocer', 'Groceries', '600.00')
+  add(`${months[3]}-16`, 'Green Grocer', 'Groceries', '600.00')
 
   return rows.map((r) => r.join(',')).join('\n')
 }

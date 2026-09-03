@@ -59,15 +59,17 @@ async function boot() {
     return 0
   })
 
-  // Check for upcoming bills and show notifications if enabled.
-  db.settings.get('settings').then((s) => {
+  // Check for upcoming bills, now and whenever the app comes back to the
+  // foreground. Settings are re-read each time so toggling the reminders off
+  // (or changing the lead time) takes effect without a reload.
+  const checkBills = async () => {
+    const s = await db.settings.get('settings')
     if (!s?.notificationsEnabled) return
-    checkUpcomingBills(s.notifyDaysBefore ?? 1).catch(() => {})
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
-        checkUpcomingBills(s.notifyDaysBefore ?? 1).catch(() => {})
-      }
-    })
+    await checkUpcomingBills(s.notifyDaysBefore ?? 1)
+  }
+  checkBills().catch(() => {})
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkBills().catch(() => {})
   })
 
   createRoot(container).render(

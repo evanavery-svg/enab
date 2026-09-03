@@ -1,4 +1,5 @@
-import { db } from '../db/db'
+import { db, preservingTimestamps } from '../db/db'
+import { base64ToBlob, blobToBase64, type SerializedAttachment } from './attachments'
 import type {
   Account,
   BudgetEntry,
@@ -7,10 +8,14 @@ import type {
   MonthNote,
   Payee,
   ScheduledTransaction,
-  Settings,
   Transaction,
 } from '../types'
 
+/**
+ * A sync packet deliberately carries no settings. Settings are per-device
+ * (theme, PIN, and the sync passphrase itself), and shipping them would put
+ * the passphrase inside the very file it protects.
+ */
 export interface SyncPacket {
   app: 'enab-sync'
   version: 1
@@ -24,16 +29,25 @@ export interface SyncPacket {
   scheduled: ScheduledTransaction[]
   budgetEntries: BudgetEntry[]
   monthNotes: MonthNote[]
-  settings: Settings[]
+  attachments: SerializedAttachment[]
 }
 
+/**
+ * Identifies the exporting device. Storage can be unavailable (private windows,
+ * hardened privacy settings), and that must not be what stops a sync export —
+ * the id is only a label, so an ephemeral one is fine.
+ */
 function getDeviceId(): string {
-  let id = localStorage.getItem('enab-device-id')
-  if (!id) {
-    id = crypto.randomUUID()
-    localStorage.setItem('enab-device-id', id)
+  try {
+    let id = localStorage.getItem('enab-device-id')
+    if (!id) {
+      id = crypto.randomUUID()
+      localStorage.setItem('enab-device-id', id)
+    }
+    return id
+  } catch {
+    return 'unknown-device'
   }
-  return id
 }
 
 async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKey> {
@@ -51,7 +65,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
 }
 
 export async function exportSyncPacket(): Promise<SyncPacket> {
-  const [accounts, categoryGroups, categories, payees, transactions, scheduled, budgetEntries, monthNotes, settings] =
+  const [accounts, categoryGroups, categories, payees, transactions, scheduled, budgetEntries, monthNotes, rawAttachments] =
     await Promise.all([
       db.accounts.toArray(),
       db.categoryGroups.toArray(),
@@ -61,8 +75,20 @@ export async function exportSyncPacket(): Promise<SyncPacket> {
       db.scheduled.toArray(),
       db.budgetEntries.toArray(),
       db.monthNotes.toArray(),
-      db.settings.toArray(),
+      db.attachments.toArray(),
     ])
+
+  const attachments = await Promise.all(
+    rawAttachments.map(async (a) => ({
+      id: a.id,
+      transactionId: a.transactionId,
+      name: a.name,
+      type: a.type,
+      size: a.size,
+      data: await blobToBase64(a.data),
+      createdAt: a.createdAt,
+    })),
+  )
 
   return {
     app: 'enab-sync',
@@ -77,7 +103,7 @@ export async function exportSyncPacket(): Promise<SyncPacket> {
     scheduled,
     budgetEntries,
     monthNotes,
-    settings,
+    attachments,
   }
 }
 
@@ -100,6 +126,7 @@ export async function encryptPacket(packet: SyncPacket, passphrase: string): Pro
 
 export async function decryptPacket(buffer: ArrayBuffer, passphrase: string): Promise<SyncPacket> {
   const data = new Uint8Array(buffer)
+  if (data.byteLength < 33) throw new Error('Not an ENAB sync file.')
   if (data[0] !== 69 || data[1] !== 78 || data[2] !== 65 || data[3] !== 66) {
     throw new Error('Not an ENAB sync file.')
   }
@@ -114,95 +141,52 @@ export async function decryptPacket(buffer: ArrayBuffer, passphrase: string): Pr
   return packet
 }
 
-interface MergeResult {
+interface MergeResult<T> {
+  /** Only the records that actually changed — the rest are left untouched. */
+  changed: T[]
   added: number
   updated: number
-  conflicts: number
 }
 
-function mergeRecords<T extends { id: string; deleted?: boolean; createdAt?: string }>(
+/** When a record has never been stamped, its creation time is the best guess. */
+function stampOf(record: { updatedAt?: string; createdAt?: string }): string {
+  return record.updatedAt ?? record.createdAt ?? ''
+}
+
+/**
+ * Last-write-wins on `updatedAt`. Ties keep the local copy, so re-importing the
+ * same packet is a no-op rather than a churn of rewrites.
+ */
+function mergeRecords<T extends { updatedAt?: string; createdAt?: string }>(
   local: T[],
   remote: T[],
-): { merged: T[]; stats: MergeResult } {
-  const localMap = new Map(local.map((r) => [r.id, r]))
-  const stats: MergeResult = { added: 0, updated: 0, conflicts: 0 }
-  const result = new Map(local.map((r) => [r.id, r]))
+  keyOf: (record: T) => string,
+): MergeResult<T> {
+  const localMap = new Map(local.map((r) => [keyOf(r), r]))
+  const changed: T[] = []
+  let added = 0
+  let updated = 0
 
   for (const r of remote) {
-    const existing = localMap.get(r.id)
+    const existing = localMap.get(keyOf(r))
     if (!existing) {
-      result.set(r.id, r)
-      stats.added++
-    } else {
-      const remoteTime = (r as any).createdAt ?? ''
-      const localTime = (existing as any).createdAt ?? ''
-      if (remoteTime > localTime) {
-        result.set(r.id, r)
-        stats.updated++
-      } else if (remoteTime === localTime) {
-        // Same timestamp — keep local (no-op)
-      } else {
-        stats.conflicts++
-      }
+      changed.push(r)
+      added++
+    } else if (stampOf(r) > stampOf(existing)) {
+      changed.push(r)
+      updated++
     }
   }
 
-  return { merged: [...result.values()], stats }
+  return { changed, added, updated }
 }
 
-function mergeBudgetEntries(
-  local: BudgetEntry[],
-  remote: BudgetEntry[],
-): { merged: BudgetEntry[]; stats: MergeResult } {
-  const localMap = new Map(local.map((e) => [e.id, e]))
-  const stats: MergeResult = { added: 0, updated: 0, conflicts: 0 }
-  const result = new Map(local.map((e) => [e.id, e]))
-
-  for (const r of remote) {
-    if (!localMap.has(r.id)) {
-      result.set(r.id, r)
-      stats.added++
-    } else {
-      const existing = localMap.get(r.id)!
-      if (existing.assigned !== r.assigned) {
-        // Last-write-wins: remote wins since it's newer export
-        result.set(r.id, r)
-        stats.updated++
-      }
-    }
-  }
-
-  return { merged: [...result.values()], stats }
-}
-
-function mergeMonthNotes(
-  local: MonthNote[],
-  remote: MonthNote[],
-): { merged: MonthNote[]; stats: MergeResult } {
-  const localMap = new Map(local.map((n) => [n.month, n]))
-  const stats: MergeResult = { added: 0, updated: 0, conflicts: 0 }
-  const result = new Map(local.map((n) => [n.month, n]))
-
-  for (const r of remote) {
-    if (!localMap.has(r.month)) {
-      result.set(r.month, r)
-      stats.added++
-    } else {
-      const existing = localMap.get(r.month)!
-      if (existing.note !== r.note) {
-        result.set(r.month, r)
-        stats.updated++
-      }
-    }
-  }
-
-  return { merged: [...result.values()], stats }
-}
-
-export async function mergeImport(packet: SyncPacket): Promise<{
+export interface SyncSummary {
   totalAdded: number
   totalUpdated: number
-}> {
+}
+
+export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
   const [
     localAccounts,
     localGroups,
@@ -212,6 +196,7 @@ export async function mergeImport(packet: SyncPacket): Promise<{
     localScheduled,
     localEntries,
     localMonthNotes,
+    localAttachments,
   ] = await Promise.all([
     db.accounts.toArray(),
     db.categoryGroups.toArray(),
@@ -221,40 +206,57 @@ export async function mergeImport(packet: SyncPacket): Promise<{
     db.scheduled.toArray(),
     db.budgetEntries.toArray(),
     db.monthNotes.toArray(),
+    db.attachments.toArray(),
   ])
 
-  const accts = mergeRecords(localAccounts, packet.accounts)
-  const groups = mergeRecords(localGroups, packet.categoryGroups)
-  const cats = mergeRecords(localCategories, packet.categories)
-  const pays = mergeRecords(localPayees, packet.payees)
-  const txns = mergeRecords(localTransactions, packet.transactions)
-  const scheds = mergeRecords(localScheduled, packet.scheduled)
-  const entries = mergeBudgetEntries(localEntries, packet.budgetEntries)
-  const mergedNotes = mergeMonthNotes(localMonthNotes, packet.monthNotes)
+  const byId = <T extends { id: string }>(r: T) => r.id
+  const accts = mergeRecords(localAccounts, packet.accounts ?? [], byId)
+  const groups = mergeRecords(localGroups, packet.categoryGroups ?? [], byId)
+  const cats = mergeRecords(localCategories, packet.categories ?? [], byId)
+  const pays = mergeRecords(localPayees, packet.payees ?? [], byId)
+  const txns = mergeRecords(localTransactions, packet.transactions ?? [], byId)
+  const scheds = mergeRecords(localScheduled, packet.scheduled ?? [], byId)
+  const entries = mergeRecords(localEntries, packet.budgetEntries ?? [], byId)
+  const notes = mergeRecords(localMonthNotes, packet.monthNotes ?? [], (n) => n.month)
 
-  await db.transaction(
-    'rw',
-    [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes],
-    async () => {
-      await db.accounts.bulkPut(accts.merged)
-      await db.categoryGroups.bulkPut(groups.merged)
-      await db.categories.bulkPut(cats.merged)
-      await db.payees.bulkPut(pays.merged)
-      await db.transactions.bulkPut(txns.merged)
-      await db.scheduled.bulkPut(scheds.merged)
-      await db.budgetEntries.bulkPut(entries.merged)
-      await db.monthNotes.bulkPut(mergedNotes.merged)
-    },
-  )
+  // Attachment blobs are immutable once written, so only genuinely new ones
+  // need decoding — that keeps a repeat sync from re-inflating every receipt.
+  const haveAttachment = new Set(localAttachments.map((a) => a.id))
+  const newAttachments = (packet.attachments ?? []).filter((a) => !haveAttachment.has(a.id))
 
-  const totalAdded = [accts, groups, cats, pays, txns, scheds, entries].reduce(
-    (s, r) => s + r.stats.added,
-    0,
-  )
-  const totalUpdated = [accts, groups, cats, pays, txns, scheds, entries].reduce(
-    (s, r) => s + r.stats.updated,
-    0,
-  )
+  await preservingTimestamps(async () => {
+    await db.transaction(
+      'rw',
+      [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes, db.attachments],
+      async () => {
+        if (accts.changed.length) await db.accounts.bulkPut(accts.changed)
+        if (groups.changed.length) await db.categoryGroups.bulkPut(groups.changed)
+        if (cats.changed.length) await db.categories.bulkPut(cats.changed)
+        if (pays.changed.length) await db.payees.bulkPut(pays.changed)
+        if (txns.changed.length) await db.transactions.bulkPut(txns.changed)
+        if (scheds.changed.length) await db.scheduled.bulkPut(scheds.changed)
+        if (entries.changed.length) await db.budgetEntries.bulkPut(entries.changed)
+        if (notes.changed.length) await db.monthNotes.bulkPut(notes.changed)
+        if (newAttachments.length) {
+          await db.attachments.bulkPut(
+            newAttachments.map((a) => ({
+              id: a.id,
+              transactionId: a.transactionId,
+              name: a.name,
+              type: a.type,
+              size: a.size,
+              data: base64ToBlob(a.data, a.type),
+              createdAt: a.createdAt,
+            })),
+          )
+        }
+      },
+    )
+  })
 
-  return { totalAdded, totalUpdated }
+  const parts = [accts, groups, cats, pays, txns, scheds, entries, notes]
+  return {
+    totalAdded: parts.reduce((s, r) => s + r.added, 0) + newAttachments.length,
+    totalUpdated: parts.reduce((s, r) => s + r.updated, 0),
+  }
 }

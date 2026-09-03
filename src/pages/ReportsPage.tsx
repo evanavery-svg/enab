@@ -149,6 +149,11 @@ export default function ReportsPage() {
     return { netWorthSeries: nwSeries, accountBreakdown: breakdown, netWorthChange: change }
   }, [months, transactions, accounts])
 
+  const accountBreakdownTotal = useMemo(
+    () => accountBreakdown.reduce((s, a) => s + Math.abs(a.balance), 0) || 1,
+    [accountBreakdown],
+  )
+
   const ageOfMoney = useMemo(() => computeAgeOfMoney(accounts, transactions), [accounts, transactions])
 
   const totalIncome = monthlyTotals.reduce((s, m) => s + m.income, 0)
@@ -304,8 +309,7 @@ export default function ReportsPage() {
                 <h4 style={{ fontSize: 13, fontWeight: 650, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.03em' }}>By account</h4>
                 <ul className="breakdown" style={{ fontSize: 13.5 }}>
                   {accountBreakdown.map((a) => {
-                    const total = accountBreakdown.reduce((s, x) => s + Math.abs(x.balance), 0) || 1
-                    const pct = Math.abs(a.balance) / total
+                    const pct = Math.abs(a.balance) / accountBreakdownTotal
                     return (
                       <li key={a.name}>
                         <span className="label truncate">{a.name}</span>

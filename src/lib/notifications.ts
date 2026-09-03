@@ -1,32 +1,32 @@
 import { db } from '../db/db'
+import { addDays, today } from './dates'
+import { formatMoney } from './money'
 import type { ScheduledTransaction } from '../types'
 
 const NOTIFIED_KEY = 'enab-notified-schedules'
+/** Plenty of history to stop repeats, small enough to stay a cheap localStorage write. */
+const NOTIFIED_LIMIT = 200
 
-function getNotified(): Set<string> {
+function getNotified(): string[] {
   try {
-    return new Set(JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '[]'))
+    const parsed = JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '[]')
+    return Array.isArray(parsed) ? parsed.filter((k): k is string => typeof k === 'string') : []
   } catch {
-    return new Set()
+    return []
   }
 }
 
 function markNotified(keys: string[]) {
-  const set = getNotified()
-  for (const k of keys) set.add(k)
-  // Keep only the most recent 200 entries to avoid unbounded growth.
-  const arr = [...set]
-  localStorage.setItem(NOTIFIED_KEY, JSON.stringify(arr.slice(-200)))
-}
-
-function addDays(date: string, days: number): string {
-  const d = new Date(date + 'T00:00:00')
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
-}
-
-function todayStr(): string {
-  return new Date().toISOString().slice(0, 10)
+  // Re-adding a key moves it to the newest end, so a bill that keeps recurring
+  // is never the one evicted by the cap.
+  const fresh = new Set(keys)
+  const kept = getNotified().filter((k) => !fresh.has(k))
+  const next = [...kept, ...keys].slice(-NOTIFIED_LIMIT)
+  try {
+    localStorage.setItem(NOTIFIED_KEY, JSON.stringify(next))
+  } catch {
+    // A full or blocked localStorage costs us de-duplication, not correctness.
+  }
 }
 
 export async function requestNotificationPermission(): Promise<boolean> {
@@ -46,47 +46,42 @@ export function notificationPermission(): NotificationPermission | 'unsupported'
   return Notification.permission
 }
 
+/**
+ * Notify once per scheduled transaction per due date. Safe to call on every
+ * foreground — it returns early unless something new is actually due.
+ */
 export async function checkUpcomingBills(daysBefore = 1): Promise<number> {
   if (!('Notification' in window) || Notification.permission !== 'granted') return 0
 
-  const t = todayStr()
-  const horizon = addDays(t, daysBefore)
-  const schedules = (await db.scheduled.toArray()).filter(
-    (s) => !s.deleted && !s.paused && s.nextDate <= horizon,
-  )
+  const t = today()
+  const horizon = addDays(t, Math.max(0, daysBefore))
 
+  // The index does the filtering, so a long schedule history never gets loaded.
+  const due = await db.scheduled.where('nextDate').belowOrEqual(horizon).toArray()
+  const schedules = due.filter((s) => !s.deleted && !s.paused)
   if (schedules.length === 0) return 0
 
-  const notified = getNotified()
-  const toNotify: ScheduledTransaction[] = []
-
-  for (const s of schedules) {
-    const key = `${s.id}:${s.nextDate}`
-    if (notified.has(key)) continue
-    toNotify.push(s)
-  }
-
+  const notified = new Set(getNotified())
+  const keyOf = (s: ScheduledTransaction) => `${s.id}:${s.nextDate}`
+  const toNotify = schedules.filter((s) => !notified.has(keyOf(s)))
   if (toNotify.length === 0) return 0
 
-  const payees = await db.payees.toArray()
+  const [payees, settings] = await Promise.all([db.payees.toArray(), db.settings.get('settings')])
   const payeeMap = new Map(payees.map((p) => [p.id, p.name]))
 
   for (const s of toNotify) {
-    const payee = s.payeeId ? payeeMap.get(s.payeeId) ?? 'Unknown' : 'Scheduled transaction'
-    const amount = Math.abs(s.amount / 100).toFixed(2)
-    const isOverdue = s.nextDate <= t
-    const title = isOverdue ? `Overdue: ${payee}` : `Upcoming: ${payee}`
-    const body = isOverdue
-      ? `$${amount} was due on ${s.nextDate}`
-      : `$${amount} due on ${s.nextDate}`
+    const payee = (s.payeeId ? payeeMap.get(s.payeeId) : null) ?? 'Scheduled transaction'
+    const amount = formatMoney(Math.abs(s.amount), settings ?? {})
+    const overdue = s.nextDate < t
+    const when = s.nextDate === t ? 'today' : `on ${s.nextDate}`
 
-    new Notification(title, {
-      body,
+    new Notification(overdue ? `Overdue: ${payee}` : `Upcoming: ${payee}`, {
+      body: overdue ? `${amount} was due ${when}` : `${amount} due ${when}`,
       icon: './icons/icon-192.png',
       tag: `enab-bill-${s.id}`,
     })
   }
 
-  markNotified(toNotify.map((s) => `${s.id}:${s.nextDate}`))
+  markNotified(toNotify.map(keyOf))
   return toNotify.length
 }

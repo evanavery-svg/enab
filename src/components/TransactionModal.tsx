@@ -29,6 +29,9 @@ const FLAGS: { color: Exclude<FlagColor, null>; label: string }[] = [
   { color: 'purple', label: 'Purple' },
 ]
 
+const MAX_ATTACHMENT_MB = 10
+const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024
+
 type Leg = SubTransaction
 
 export function TransactionModal() {
@@ -75,8 +78,18 @@ export function TransactionModal() {
   }, [existing, payees])
 
   useEffect(() => {
+    // Clearing first matters: without it, opening a new transaction right after
+    // editing one shows the previous transaction's receipts, and removing a
+    // chip would delete the *other* transaction's file.
+    setAttachments([])
     if (!existing) return
-    getAttachments(existing.id).then(setAttachments)
+    let cancelled = false
+    getAttachments(existing.id).then((rows) => {
+      if (!cancelled) setAttachments(rows)
+    })
+    return () => {
+      cancelled = true
+    }
   }, [existing])
 
   const payeeOptions = useMemo(() => {
@@ -388,8 +401,15 @@ export function TransactionModal() {
             multiple
             hidden
             onChange={(e) => {
-              const files = e.target.files
-              if (files) setPendingFiles((prev) => [...prev, ...Array.from(files)])
+              const picked = Array.from(e.target.files ?? [])
+              // Attachments are base64'd into backup and sync files, so one
+              // oversized video would make the whole export unwieldy.
+              const tooBig = picked.filter((f) => f.size > MAX_ATTACHMENT_BYTES)
+              const ok = picked.filter((f) => f.size <= MAX_ATTACHMENT_BYTES)
+              if (tooBig.length) {
+                toast(`${tooBig[0].name} is over ${MAX_ATTACHMENT_MB}MB`, { tone: 'danger' })
+              }
+              if (ok.length) setPendingFiles((prev) => [...prev, ...ok])
               e.target.value = ''
             }}
           />

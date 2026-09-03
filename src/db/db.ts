@@ -41,6 +41,52 @@ export class EnabDatabase extends Dexie {
     this.version(2).stores({
       attachments: 'id, transactionId',
     })
+
+    // Every synced record carries an `updatedAt`. Stamping it here rather than
+    // at each of the ~60 call sites means no write can forget to, which matters:
+    // sync compares these timestamps to decide which device's copy is newer.
+    for (const name of SYNCED_TABLES) {
+      const table = this.table(name)
+      table.hook('creating', (_pk, obj: { updatedAt?: string }) => {
+        if (stampTimestamps) obj.updatedAt = new Date().toISOString()
+      })
+      table.hook('updating', (mods: object) => {
+        // An empty diff is a no-op write; bumping it would invent a change.
+        if (!stampTimestamps || Object.keys(mods).length === 0) return
+        return { updatedAt: new Date().toISOString() }
+      })
+    }
+  }
+}
+
+/** Tables that participate in device sync, and so need `updatedAt`. */
+const SYNCED_TABLES = [
+  'accounts',
+  'categoryGroups',
+  'categories',
+  'payees',
+  'transactions',
+  'scheduled',
+  'budgetEntries',
+  'monthNotes',
+] as const
+
+let stampTimestamps = true
+
+/**
+ * Run writes with auto-stamping off, so records keep the `updatedAt` they
+ * arrived with. Merge and restore need this — re-stamping every incoming
+ * record with "now" would make the next sync think this device edited them.
+ *
+ * Not reentrant, and deliberately so: it wraps whole-database operations that
+ * the UI already serialises behind a modal.
+ */
+export async function preservingTimestamps<T>(fn: () => Promise<T>): Promise<T> {
+  stampTimestamps = false
+  try {
+    return await fn()
+  } finally {
+    stampTimestamps = true
   }
 }
 
