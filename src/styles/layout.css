@@ -63,7 +63,7 @@
   text-decoration: none;
 }
 .nav-link:hover { background: var(--surface-2); text-decoration: none; }
-.nav-link.active { background: var(--accent-soft); color: var(--accent-ink); font-weight: 650; }
+.nav-link.active { background: var(--accent-soft); color: var(--text); font-weight: 650; }
 .nav-link .nav-amount {
   margin-left: auto;
   font-family: var(--font-num);
@@ -201,6 +201,10 @@
     position: sticky;
     top: 0;
     z-index: 20;
+    /* Frosted, so rows scrolling underneath read as passing behind it. */
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    -webkit-backdrop-filter: saturate(1.6) blur(16px);
+    backdrop-filter: saturate(1.6) blur(16px);
   }
   .nav-menu-btn { display: inline-flex; }
 

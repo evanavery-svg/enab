@@ -1,90 +1,89 @@
 /* ------------------------------------------------------------------ *
- * Design tokens — pure black and white. No accent hue.
+ * Design tokens.
  *
- * The look is deliberately restrained: black ink on white paper (inverted on
- * OLED in dark mode), generous radii, soft depth. Everything that used to be
- * "the accent colour" is now just black (white in dark mode) — the one thing
- * that matters on a screen stands out through weight, fill and contrast, not
- * hue. Light is the base; dark and the explicit theme toggle override only
- * the values.
+ * Ink on warm paper. The chrome stays neutral — near-black actions, real grey
+ * steps for hierarchy, soft hairlines — so colour is free to mean something.
+ * It is spent on exactly one job: the state of your money. Green is funded,
+ * amber needs attention, red is overspent. Charts get their own validated
+ * categorical slots so a series never impersonates a money state.
+ *
+ * Light is the base; dark mode and the explicit theme toggle override only
+ * the values, and every dark value is chosen for the dark surface rather
+ * than flipped.
  * ------------------------------------------------------------------ */
 
 :root {
-  /* Two colours. Structure comes from whitespace and soft depth, not lines or
-     grey fills. Every surface is white (a whisper of elevation in dark mode),
-     and text, lines and every "accent" are the ink colour. */
-
-  /* Surfaces — all white; separation is drawn, not shaded */
-  --bg: #ffffff;
+  /* Surfaces: a warm page plane with white cards floating on it. */
+  --bg: #f6f5f2;
   --surface: #ffffff;
-  --surface-2: #ffffff;
-  --surface-3: #ffffff;
-  --overlay: rgba(0, 0, 0, 0.5);
+  --surface-2: #f2f0ec;
+  --surface-3: #e8e5df;
+  --overlay: rgba(20, 18, 14, 0.42);
 
-  /* Ink + lines — black. Hierarchy is carried by weight and size, not grey. */
-  --text: #000000;
-  --text-dim: #000000;
-  --text-faint: #000000;
-  --border: #000000;
-  --border-strong: #000000;
+  /* Ink, in real steps. dim is secondary text (≥4.5:1 on white); faint is
+     for labels and meta that can afford to recede (≥3:1). */
+  --text: #16161a;
+  --text-dim: #5d5c64;
+  --text-faint: #8a8991;
+  --border: #e6e3dd;
+  --border-strong: #d3cfc7;
 
-  /* "Accent" is now just the ink colour — solid black fills, black outlines,
-     black highlighted text. `accent-soft` is a faint black wash for the one
-     highlighted surface per screen. */
-  --accent: #000000;
-  --accent-ink: #000000;
-  --accent-soft: rgba(0, 0, 0, 0.08);
+  /* Actions are ink, not a brand hue: the black buttons you chose stay. */
+  --accent: #16161a;
+  --accent-ink: #16161a;
+  --accent-soft: rgba(22, 22, 26, 0.07);
   --accent-text: #ffffff;
 
-  /* Money states: with no colour left to spend, "good" and "needs attention"
-     both read as solid ink — the pill styles that use these (see
-     .avail-pill in pages.css) tell them apart by fill vs. outline instead. */
-  --positive: #000000;
-  --positive-soft: #ffffff;
-  --warning: #000000;
-  --warning-soft: rgba(0, 0, 0, 0.08);
-  --danger: #000000;
-  --danger-soft: rgba(0, 0, 0, 0.08);
-  --info: #000000;
-  --info-soft: #ffffff;
+  /* Money states — the only hues in the chrome. Text steps clear 4.5:1 on
+     white; the soft steps are pill and card backgrounds. */
+  --positive: #0b7a52;
+  --positive-soft: #e1f2ea;
+  --warning: #8a5700;
+  --warning-soft: #fbefd6;
+  --danger: #b5302a;
+  --danger-soft: #fbe5e2;
+  --danger-solid: #d93b32;
+  --info: #2c62c4;
+  --info-soft: #e5edfb;
   --neutral-pill: transparent;
-  --neutral-pill-text: #000000;
+  --neutral-pill-text: #5d5c64;
 
-  /* Flags — the one place colour survives: a user-chosen tag for organising
-     categories, not part of the app's own chrome. */
   --flag-red: #e0342c;
-  --flag-orange: #ff6a00;
+  --flag-orange: #e8772e;
   --flag-yellow: #d7a70a;
   --flag-green: #2f9e52;
   --flag-blue: #2f7fd1;
   --flag-purple: #8154c4;
 
-  /* Chart series — a monochrome ramp, stepped by opacity so neighbouring
-     series still separate without needing a second hue. */
-  --c1: #000000;
-  --c2: rgba(0, 0, 0, 0.78);
-  --c3: rgba(0, 0, 0, 0.6);
-  --c4: rgba(0, 0, 0, 0.46);
-  --c5: rgba(0, 0, 0, 0.85);
-  --c6: rgba(0, 0, 0, 0.34);
-  --c7: rgba(0, 0, 0, 0.24);
-  --c8: rgba(0, 0, 0, 0.16);
+  /* Chart series: blue, aqua, violet — validated as a set on #ffffff
+     (adjacent CVD ΔE ≥ 23, normal-vision ≥ 24). Aqua sits under 3:1, so every
+     chart keeps its legend with values. Orange is deliberately not a slot. */
+  --c1: #2a78d6;
+  --c2: #1baf7a;
+  --c3: #6250d6;
+  --c4: #2a78d6;
+  --c5: #1baf7a;
+  --c6: #6250d6;
+  --c7: #8a8991;
+  --c8: #d3cfc7;
 
   /* Shape + motion */
   --radius-sm: 8px;
   --radius: 12px;
-  --radius-lg: 20px;
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.05), 0 1px 3px rgba(0, 0, 0, 0.06);
-  --shadow-2: 0 6px 16px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.05);
-  --shadow-3: 0 16px 40px rgba(0, 0, 0, 0.16), 0 4px 12px rgba(0, 0, 0, 0.08);
+  --radius-lg: 18px;
+  --shadow-1: 0 1px 2px rgba(40, 32, 20, 0.05), 0 0 0 1px rgba(40, 32, 20, 0.05);
+  --shadow-2: 0 8px 20px rgba(40, 32, 20, 0.08), 0 0 0 1px rgba(40, 32, 20, 0.05);
+  --shadow-3: 0 18px 44px rgba(40, 32, 20, 0.16), 0 2px 8px rgba(40, 32, 20, 0.06);
 
   --header-h: 56px;
   --nav-h: 60px;
   --sidebar-w: 264px;
 
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto,
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable', 'Segoe UI', Roboto, Inter,
     'Helvetica Neue', Arial, sans-serif;
-  --font-num: ui-monospace, 'SF Mono', SFMono-Regular, 'Roboto Mono', Menlo, Consolas, monospace;
+  /* Numbers use the UI face with tabular figures, not a monospace: columns
+     still line up, and amounts read as text rather than code. */
+  --font-num: var(--font);
 }
 
 :root[data-theme='dark'],
@@ -96,104 +95,108 @@
   :root:not([data-theme='light']) {
     color-scheme: dark;
 
-    --bg: #000000;
-    --surface: #0e0e0e;
-    --surface-2: #1a1a1a;
-    --surface-3: #242424;
-    --overlay: rgba(0, 0, 0, 0.72);
+    --bg: #0b0b0d;
+    --surface: #161619;
+    --surface-2: #1f1f23;
+    --surface-3: #2a2a2f;
+    --overlay: rgba(0, 0, 0, 0.66);
 
-    --text: #ffffff;
-    --text-dim: #ffffff;
-    --text-faint: #ffffff;
-    --border: #ffffff;
-    --border-strong: #ffffff;
+    --text: #f2f2f4;
+    --text-dim: #a5a5ae;
+    --text-faint: #75757e;
+    --border: #26262b;
+    --border-strong: #37373d;
 
-    --accent: #ffffff;
-    --accent-ink: #ffffff;
-    --accent-soft: rgba(255, 255, 255, 0.14);
-    --accent-text: #000000;
+    --accent: #f2f2f4;
+    --accent-ink: #f2f2f4;
+    --accent-soft: rgba(242, 242, 244, 0.1);
+    --accent-text: #0b0b0d;
 
-    --positive: #ffffff;
-    --positive-soft: #000000;
-    --warning: #ffffff;
-    --warning-soft: rgba(255, 255, 255, 0.14);
-    --danger: #ffffff;
-    --danger-soft: rgba(255, 255, 255, 0.14);
-    --info: #ffffff;
-    --info-soft: #000000;
+    --positive: #3ccf8e;
+    --positive-soft: rgba(60, 207, 142, 0.14);
+    --warning: #f0b445;
+    --warning-soft: rgba(240, 180, 69, 0.15);
+    --danger: #ff6b61;
+    --danger-soft: rgba(255, 107, 97, 0.15);
+    --danger-solid: #c9362e;
+    --info: #6f9ff0;
+    --info-soft: rgba(111, 159, 240, 0.15);
     --neutral-pill: transparent;
-    --neutral-pill-text: #ffffff;
+    --neutral-pill-text: #a5a5ae;
 
     --flag-red: #ff5a50;
-    --flag-orange: #ff8a2e;
+    --flag-orange: #f08a45;
     --flag-yellow: #e0c24a;
     --flag-green: #43c463;
     --flag-blue: #5f9ee0;
     --flag-purple: #a37fd6;
 
-    --c1: #ffffff;
-    --c2: rgba(255, 255, 255, 0.78);
-    --c3: rgba(255, 255, 255, 0.6);
-    --c4: rgba(255, 255, 255, 0.46);
-    --c5: rgba(255, 255, 255, 0.85);
-    --c6: rgba(255, 255, 255, 0.34);
-    --c7: rgba(255, 255, 255, 0.24);
-    --c8: rgba(255, 255, 255, 0.16);
+    /* The same three hues stepped for the dark surface, validated on #161619. */
+    --c1: #3987e5;
+    --c2: #199e70;
+    --c3: #9085e9;
+    --c4: #3987e5;
+    --c5: #199e70;
+    --c6: #9085e9;
+    --c7: #75757e;
+    --c8: #37373d;
 
-    --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.6);
-    --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.6);
-    --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.7);
+    --shadow-1: 0 0 0 1px rgba(255, 255, 255, 0.05);
+    --shadow-2: 0 8px 22px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+    --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #000000;
-  --surface: #0e0e0e;
-  --surface-2: #1a1a1a;
-  --surface-3: #242424;
-  --overlay: rgba(0, 0, 0, 0.72);
+  --bg: #0b0b0d;
+  --surface: #161619;
+  --surface-2: #1f1f23;
+  --surface-3: #2a2a2f;
+  --overlay: rgba(0, 0, 0, 0.66);
 
-  --text: #ffffff;
-  --text-dim: #ffffff;
-  --text-faint: #ffffff;
-  --border: #ffffff;
-  --border-strong: #ffffff;
+  --text: #f2f2f4;
+  --text-dim: #a5a5ae;
+  --text-faint: #75757e;
+  --border: #26262b;
+  --border-strong: #37373d;
 
-  --accent: #ffffff;
-  --accent-ink: #ffffff;
-  --accent-soft: rgba(255, 255, 255, 0.14);
-  --accent-text: #000000;
+  --accent: #f2f2f4;
+  --accent-ink: #f2f2f4;
+  --accent-soft: rgba(242, 242, 244, 0.1);
+  --accent-text: #0b0b0d;
 
-  --positive: #ffffff;
-  --positive-soft: #000000;
-  --warning: #ffffff;
-  --warning-soft: rgba(255, 255, 255, 0.14);
-  --danger: #ffffff;
-  --danger-soft: rgba(255, 255, 255, 0.14);
-  --info: #ffffff;
-  --info-soft: #000000;
+  --positive: #3ccf8e;
+  --positive-soft: rgba(60, 207, 142, 0.14);
+  --warning: #f0b445;
+  --warning-soft: rgba(240, 180, 69, 0.15);
+  --danger: #ff6b61;
+  --danger-soft: rgba(255, 107, 97, 0.15);
+  --danger-solid: #c9362e;
+  --info: #6f9ff0;
+  --info-soft: rgba(111, 159, 240, 0.15);
   --neutral-pill: transparent;
-  --neutral-pill-text: #ffffff;
+  --neutral-pill-text: #a5a5ae;
 
   --flag-red: #ff5a50;
-  --flag-orange: #ff8a2e;
+  --flag-orange: #f08a45;
   --flag-yellow: #e0c24a;
   --flag-green: #43c463;
   --flag-blue: #5f9ee0;
   --flag-purple: #a37fd6;
 
-  --c1: #ffffff;
-  --c2: rgba(255, 255, 255, 0.78);
-  --c3: rgba(255, 255, 255, 0.6);
-  --c4: rgba(255, 255, 255, 0.46);
-  --c5: rgba(255, 255, 255, 0.85);
-  --c6: rgba(255, 255, 255, 0.34);
-  --c7: rgba(255, 255, 255, 0.24);
-  --c8: rgba(255, 255, 255, 0.16);
+  /* The same three hues stepped for the dark surface, validated on #161619. */
+  --c1: #3987e5;
+  --c2: #199e70;
+  --c3: #9085e9;
+  --c4: #3987e5;
+  --c5: #199e70;
+  --c6: #9085e9;
+  --c7: #75757e;
+  --c8: #37373d;
 
-  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.6);
-  --shadow-2: 0 6px 18px rgba(0, 0, 0, 0.6);
-  --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.7);
+  --shadow-1: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --shadow-2: 0 8px 22px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-3: 0 18px 44px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
 }

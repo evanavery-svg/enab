@@ -26,8 +26,7 @@ import {
   quickBudgetPlan,
   type QuickBudgetAction,
 } from '../budget/quickBudget'
-import { monthLabel } from '../lib/dates'
-import type { Category, CategoryGroup, CategoryMonthState, Cents, Id } from '../types'
+import type { Category, CategoryGroup, CategoryMonthState, Cents, Id, MonthSummary } from '../types'
 
 const QUICK_ACTIONS: QuickBudgetAction[] = [
   'underfunded',
@@ -40,7 +39,7 @@ const QUICK_ACTIONS: QuickBudgetAction[] = [
 
 export default function BudgetPage() {
   const data = useData()
-  const { groups, categories, budget, money, accounts } = data
+  const { groups, categories, budget, accounts } = data
   const month = useUi((s) => s.month)
   const openDetail = useUi((s) => s.openCategoryDetail)
   const openTxnModal = useUi((s) => s.openTxnModal)
@@ -201,6 +200,8 @@ export default function BudgetPage() {
 
       <div className="content">
         <div className="budget-table">
+          {summary && states && <MonthOverview summary={summary} states={states} categoryIds={allCategoryIds} />}
+
           <div className="budget-head">
             <span>Category</span>
             <span>Assigned</span>
@@ -223,23 +224,6 @@ export default function BudgetPage() {
           <button className="btn btn-block" style={{ marginTop: 4 }} onClick={() => setAddingGroup(true)}>
             <Icon name="plus" size={16} /> Add category group
           </button>
-
-          {summary && (
-            <div className="card card-pad" style={{ marginTop: 14, fontSize: 13.5 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
-                <span className="dim">Assigned in {monthLabel(month, { withYear: false })}</span>
-                <span className="num">{money(summary.assigned)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
-                <span className="dim">Activity</span>
-                <span className="num">{money(summary.activity)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', padding: '3px 0' }}>
-                <span className="dim">Total available</span>
-                <span className="num">{money(summary.totalAvailable)}</span>
-              </div>
-            </div>
-          )}
 
           <AppFooter />
         </div>
@@ -284,6 +268,77 @@ export default function BudgetPage() {
 }
 
 /* ------------------------------------------------------------------ */
+
+/**
+ * The month at a glance, above the categories rather than buried under them:
+ * what went in, what came out, what's left — and whether anything needs you.
+ */
+function MonthOverview({
+  summary,
+  states,
+  categoryIds,
+}: {
+  summary: MonthSummary
+  states: Map<Id, CategoryMonthState>
+  categoryIds: Id[]
+}) {
+  const { money } = useData()
+  let overspent = 0
+  let overspentBy = 0
+  let short = 0
+  let shortBy = 0
+  for (const id of categoryIds) {
+    const st = states.get(id)
+    if (!st) continue
+    if (st.available < 0) {
+      overspent++
+      overspentBy += -st.available
+    } else if (st.goalUnderfunded > 0) {
+      short++
+      shortBy += st.goalUnderfunded
+    }
+  }
+
+  return (
+    <section className="month-overview card" aria-label="This month">
+      <div className="mo-stats">
+        <div>
+          <span className="k">Assigned</span>
+          <span className="v">{money(summary.assigned)}</span>
+        </div>
+        <div>
+          <span className="k">Activity</span>
+          <span className="v">{money(summary.activity)}</span>
+        </div>
+        <div>
+          <span className="k">Available</span>
+          <span className="v">{money(summary.totalAvailable)}</span>
+        </div>
+      </div>
+      <div className="mo-status">
+        {overspent === 0 && short === 0 ? (
+          <span className="mo-chip ok">
+            <Icon name="check" size={13} strokeWidth={2.4} /> Every category is covered
+          </span>
+        ) : (
+          <>
+            {overspent > 0 && (
+              <span className="mo-chip danger">
+                <Icon name="alert" size={13} strokeWidth={2.4} /> {overspent} overspent · {money(overspentBy)}
+              </span>
+            )}
+            {short > 0 && (
+              <span className="mo-chip warning">
+                <Icon name="target" size={13} strokeWidth={2.4} /> {short} target{short === 1 ? '' : 's'} need{short === 1 ? 's' : ''}{' '}
+                {money(shortBy)}
+              </span>
+            )}
+          </>
+        )}
+      </div>
+    </section>
+  )
+}
 
 function ReadyToAssignCard({
   onMove,
@@ -556,15 +611,10 @@ function CategoryRow({
         ? 'overspent-cash'
         : 'overspent-credit'
       : state.goalUnderfunded > 0
-        ? ''
+        ? 'underfunded'
         : state.available > 0
           ? 'positive'
           : ''
-
-  const pillStyle =
-    state.goalUnderfunded > 0 && state.available >= 0
-      ? { background: 'var(--warning-soft)', color: 'var(--warning)' }
-      : undefined
 
   return (
     <div className="cat-row" onClick={onOpen} role="button" tabIndex={-1}>
@@ -604,7 +654,6 @@ function CategoryRow({
 
       <button
         className={`avail-pill ${pillClass}`}
-        style={pillStyle}
         onClick={(e) => {
           e.stopPropagation()
           setPillAnchor(e.currentTarget)

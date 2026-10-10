@@ -26,7 +26,7 @@ function renderBootFailure(message: string) {
   wrap.style.cssText =
     'min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:32px 24px;text-align:center'
   wrap.innerHTML = `
-    <div style="display:grid;place-items:center;width:54px;height:54px;border-radius:14px;background:#137180;color:#fff;font-size:24px;font-weight:800">E</div>
+    <div style="display:grid;place-items:center;width:54px;height:54px;border-radius:14px;background:#16161a;color:#fff;font-size:24px;font-weight:800">E</div>
     <h1 style="margin:0;font-size:19px">ENAB couldn't start</h1>
     <p style="margin:0;max-width:440px;font-size:14.5px;line-height:1.5;opacity:.75">${message}</p>
   `

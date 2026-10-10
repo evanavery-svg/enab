@@ -44,49 +44,47 @@
     position: sticky;
     bottom: 0;
     z-index: 15;
-    /* A hair lighter than the page so scrolled-under rows read as behind it,
-       without needing a border. */
-    background: var(--surface);
+    /* Frosted like the header, so rows scrolling under it read as behind. */
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    -webkit-backdrop-filter: saturate(1.6) blur(16px);
+    backdrop-filter: saturate(1.6) blur(16px);
+    border-top: 1px solid var(--border);
   }
 }
 
 .rta {
   margin: 0;
-  padding: 16px;
+  padding: 14px 16px;
   border-radius: var(--radius-lg);
   /*
-   * With no colour to spend, the three states read as an escalation of
-   * weight instead: no border once there's nothing left to do, a bold
-   * outline while there's money to assign, a solid fill once you've gone
-   * negative — the one true alarm.
+   * The headline number wears its state: green while there's money waiting
+   * for a job, quiet once every dollar has one, red if you've assigned more
+   * than you have.
    */
-  background: transparent;
-  color: var(--text);
+  /* The tint is translucent in dark mode; a solid base under it stops rows
+     scrolling behind the bar from showing through. */
+  background: linear-gradient(var(--positive-soft), var(--positive-soft)), var(--surface);
+  color: var(--positive);
   display: flex;
   align-items: center;
   gap: 14px;
   cursor: pointer;
-  border: 2px solid var(--text);
+  border: none;
   text-align: left;
   width: 100%;
 }
 .rta:hover { filter: brightness(0.98); }
-.rta.zero { border-color: transparent; }
-.rta.over { background: var(--text); color: var(--bg); border-color: var(--text); }
+.rta.zero { background: var(--surface); color: var(--text); box-shadow: var(--shadow-1); }
+.rta.over { background: var(--danger-solid); color: #fff; }
 .rta .rta-amount {
-  font-size: 27px;
-  font-weight: 800;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.025em;
   line-height: 1.1;
-  color: var(--text);
+  color: inherit;
 }
-.rta.over .rta-amount { color: var(--bg); }
-.rta.zero .rta-amount { color: var(--text); }
-.rta .rta-label { font-size: 13px; font-weight: 600; color: var(--text); opacity: 0.7; }
-.rta.over .rta-label { color: var(--bg); opacity: 0.85; }
-.rta .rta-chev { margin-left: auto; color: var(--text); opacity: 0.6; }
-.rta.over .rta-chev { color: var(--bg); }
+.rta .rta-label { margin-top: 2px; font-size: 13px; font-weight: 600; color: inherit; opacity: 0.8; }
+.rta .rta-chev { margin-left: auto; color: inherit; opacity: 0.6; }
 
 .rta-detail {
   padding: 12px 16px;
@@ -156,9 +154,11 @@
   grid-template-columns: minmax(0, 1fr) 100px 100px 116px;
   align-items: center;
   gap: 8px;
-  padding: 11px 12px;
+  padding: 10px 12px;
   font-weight: 700;
   font-size: 13.5px;
+  /* A tinted strip, so a group reads as the heading of the rows under it. */
+  background: var(--surface-2);
 }
 /* Name and its options menu share the first grid cell, so the money columns
    stay lined up with the category rows below. */
@@ -195,14 +195,19 @@
 }
 .group-row .chev { transition: transform 0.15s ease; flex: none; color: var(--text-dim); }
 .group-row.collapsed .chev { transform: rotate(-90deg); }
-.group-row .num { text-align: right; font-family: var(--font-num); font-size: 13px; }
+.group-row .num { text-align: right; font-family: var(--font-num); font-size: 13px; font-weight: 600; color: var(--text-dim); }
 
 .cat-row {
   padding: 11px 12px;
   cursor: pointer;
   transition: background 0.1s ease;
 }
-.cat-row:hover { background: var(--surface-2); }
+.cat-row + .cat-row { border-top: 1px solid var(--border); }
+/* Hover only where there is a real pointer: a phone keeps :hover after a tap,
+   which left a stray tint on whichever row was touched last. */
+@media (hover: hover) {
+  .cat-row:hover { background: var(--surface-2); }
+}
 .cat-row.selected { background: var(--accent-soft); }
 
 .cat-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
@@ -241,8 +246,7 @@
 @media (min-width: 900px) and (pointer: fine) {
   .assign-input { padding: 5px 8px; font-size: 14px; }
 }
-/* The palette has no grey ("faint" is pure black), so fade with opacity. */
-.assign-input::placeholder { color: var(--text); opacity: 0.28; }
+.assign-input::placeholder { color: var(--text-faint); opacity: 1; }
 .assign-input:hover { border-color: var(--border-strong); background: var(--surface); }
 .assign-input:focus {
   outline: none;
@@ -265,20 +269,19 @@
   font-weight: 650;
   font-variant-numeric: tabular-nums;
   background: transparent;
-  color: var(--text);
+  color: var(--text-faint);
   max-width: 100%;
 }
-.avail-pill.positive { background: transparent; color: var(--text); }
 /*
- * With no colour to spend, these read as an escalation of weight instead:
- * plain text, a thin outline, a bold outline, a solid fill — so cash
- * overspending (the one alarm on the screen) still stands apart from a
- * merely-funded category even though both are now just black and white.
+ * The one place on the screen colour is spent: green has money, amber needs
+ * money (a target short, or credit spending nobody funded), solid red is cash
+ * already overspent — the one that takes from next month.
  */
-.avail-pill.overspent-credit { background: transparent; color: var(--text); border: 1px solid var(--text); }
-.avail-pill.overspent-cash { background: transparent; color: var(--text); border: 2px solid var(--text); font-weight: 800; }
-.avail-pill.funded { background: var(--positive); color: var(--bg); }
-.avail-pill:hover { filter: brightness(0.95); }
+.avail-pill.positive { background: var(--positive-soft); color: var(--positive); }
+.avail-pill.underfunded,
+.avail-pill.overspent-credit { background: var(--warning-soft); color: var(--warning); }
+.avail-pill.overspent-cash { background: var(--danger-solid); color: #fff; }
+.avail-pill:hover { filter: brightness(0.96); }
 
 @media (max-width: 720px) {
   .budget-head,
@@ -303,6 +306,11 @@
   }
   .group-row .pill { display: none; }
   .budget-head { padding-inline: 12px; }
+  /* The assign field must stay 16px (iOS zooms anything smaller), so the
+     available pill comes up to meet it and rows lose their spare height. */
+  .cat-row { padding-block: 7px; }
+  .avail-pill { font-size: 14.5px; padding: 4px 10px; }
+  .group-row .num { font-size: 14px; }
   .rta-wrap { padding-inline: 10px; }
 }
 
@@ -467,7 +475,9 @@
   text-align: left;
   color: var(--text);
 }
-.txn-row:hover { background: var(--surface-2); }
+@media (hover: hover) {
+  .txn-row:hover { background: var(--surface-2); }
+}
 .txn-row.selected { background: var(--accent-soft); }
 .txn-row.pending { opacity: 0.72; }
 
@@ -519,7 +529,7 @@
   font-weight: 800;
 }
 .cleared-mark.cleared { background: var(--positive); border-color: var(--positive); color: var(--bg); }
-.cleared-mark.reconciled { background: var(--info); border-color: var(--info); color: #fff; }
+.cleared-mark.reconciled { background: var(--info); border-color: var(--info); color: var(--surface); }
 
 .bulk-bar {
   position: sticky;
@@ -584,6 +594,11 @@
 
 .chart-card { padding: 16px; }
 .chart-card > header { margin-bottom: 12px; }
+/* A title and its toggle side by side squeeze both on a phone; stack them. */
+@media (max-width: 560px) {
+  .chart-card > header[style*='flex'] { flex-direction: column; align-items: stretch !important; }
+  .chart-card > header .segmented { width: 100% !important; }
+}
 .chart-card > header h3 { font-size: 15px; }
 .chart-card > header p { margin: 3px 0 0; font-size: 12.5px; color: var(--text-dim); }
 .chart-scroll { overflow-x: auto; }
@@ -879,4 +894,61 @@
   margin: 0;
   font-family: var(--font-num);
   font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ *
+ * Month overview (top of the Budget screen)
+ * ------------------------------------------------------------------ */
+
+.month-overview {
+  margin-bottom: 16px;
+  padding: 14px 16px 12px;
+}
+.mo-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.mo-stats > div { min-width: 0; }
+.mo-stats .k {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 650;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.mo-stats .v {
+  display: block;
+  margin-top: 2px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mo-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.mo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+.mo-chip.ok { background: var(--positive-soft); color: var(--positive); }
+.mo-chip.warning { background: var(--warning-soft); color: var(--warning); }
+.mo-chip.danger { background: var(--danger-soft); color: var(--danger); }
+@media (max-width: 720px) {
+  .month-overview { margin-bottom: 12px; padding: 12px 14px 10px; }
+  .mo-stats .v { font-size: 15.5px; }
 }
