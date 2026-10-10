@@ -241,6 +241,8 @@
 @media (min-width: 900px) and (pointer: fine) {
   .assign-input { padding: 5px 8px; font-size: 14px; }
 }
+/* The palette has no grey ("faint" is pure black), so fade with opacity. */
+.assign-input::placeholder { color: var(--text); opacity: 0.28; }
 .assign-input:hover { border-color: var(--border-strong); background: var(--surface); }
 .assign-input:focus {
   outline: none;
@@ -288,6 +290,17 @@
   .cat-row .col-activity,
   .group-row .col-activity { display: none; }
   .budget-table { padding: 12px 10px 20px; }
+  /* The name column is narrow on a phone. Two lines reads far better than
+     "Non-Mon…", and the rows are tall enough to take it without growing. */
+  .cat-name .title.truncate,
+  .group-row .group-name .truncate {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
   .group-row .pill { display: none; }
   .budget-head { padding-inline: 12px; }
   .rta-wrap { padding-inline: 10px; }
@@ -657,6 +670,12 @@
   padding: 26px;
   text-align: center;
 }
+.onboarding-alt {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+.onboarding-alt .btn { font-size: 14px; }
 .onboarding .mark {
   display: grid;
   place-items: center;

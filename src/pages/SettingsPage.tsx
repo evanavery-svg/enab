@@ -13,7 +13,7 @@ import { useData } from '../hooks/useData'
 import { toast } from '../state/ui'
 import { ensureInitialized, updateSettings } from '../db/actions'
 import { clearAllTables } from '../db/db'
-import { downloadFile, exportBackup, exportTransactionsCsv, importBackup } from '../lib/backup'
+import { exportBackup, exportTransactionsCsv, importBackup, saveFile } from '../lib/backup'
 import { today } from '../lib/dates'
 import {
   requestNotificationPermission,
@@ -104,16 +104,8 @@ export default function SettingsPage() {
     try {
       const packet = await exportSyncPacket()
       const encrypted = await encryptPacket(packet, passphrase)
-      const blob = new Blob([encrypted], { type: 'application/octet-stream' })
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `enab-sync-${today()}.enab`
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
-      setTimeout(() => URL.revokeObjectURL(url), 1000)
-      toast('Sync file exported')
+      const shared = await saveFile(`enab-sync-${today()}.enab`, encrypted, 'application/octet-stream')
+      if (shared) toast('Sync file ready')
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Export failed', { tone: 'danger' })
     } finally {
@@ -134,8 +126,7 @@ export default function SettingsPage() {
       const result = await mergeImport(packet)
       toast(`Synced: ${result.totalAdded} added, ${result.totalUpdated} updated`)
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Import failed'
-      toast(msg.includes('decrypt') ? 'Wrong passphrase or corrupt file' : msg, { tone: 'danger' })
+      toast(e instanceof Error ? e.message : 'Import failed', { tone: 'danger' })
     } finally {
       setSyncing(false)
     }
@@ -143,13 +134,13 @@ export default function SettingsPage() {
 
   async function doExport() {
     const backup = await exportBackup()
-    downloadFile(`enab-backup-${today()}.json`, JSON.stringify(backup, null, 2))
-    toast('Backup downloaded')
+    if (await saveFile(`enab-backup-${today()}.json`, JSON.stringify(backup, null, 2))) toast('Backup saved')
   }
 
   async function doExportCsv() {
-    downloadFile(`enab-transactions-${today()}.csv`, await exportTransactionsCsv(), 'text/csv')
-    toast('Transactions exported')
+    if (await saveFile(`enab-transactions-${today()}.csv`, await exportTransactionsCsv(), 'text/csv')) {
+      toast('Transactions exported')
+    }
   }
 
   async function doRestore(raw: string) {
@@ -412,7 +403,8 @@ export default function SettingsPage() {
               <input
                 ref={syncFileRef}
                 type="file"
-                accept=".enab"
+                // No \`accept\`: iOS can't map a custom extension like .enab to a
+                // file type and greys out every file. The contents are checked.
                 hidden
                 onChange={async (e) => {
                   const file = e.target.files?.[0]

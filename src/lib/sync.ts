@@ -125,6 +125,19 @@ export async function encryptPacket(packet: SyncPacket, passphrase: string): Pro
   return out.buffer
 }
 
+export class WrongPassphraseError extends Error {
+  constructor() {
+    super("That passphrase doesn't open this file. Check it matches the one on the other device.")
+    this.name = 'WrongPassphraseError'
+  }
+}
+
+/** True when the bytes start with the sync file's `ENAB` header. */
+export function isSyncFile(buffer: ArrayBuffer): boolean {
+  const b = new Uint8Array(buffer, 0, Math.min(4, buffer.byteLength))
+  return b.length === 4 && b[0] === 69 && b[1] === 78 && b[2] === 65 && b[3] === 66
+}
+
 export async function decryptPacket(buffer: ArrayBuffer, passphrase: string): Promise<SyncPacket> {
   const data = new Uint8Array(buffer)
   if (data.byteLength < 33) throw new Error('Not an ENAB sync file.')
@@ -135,7 +148,14 @@ export async function decryptPacket(buffer: ArrayBuffer, passphrase: string): Pr
   const iv = data.slice(20, 32)
   const encrypted = data.slice(32)
   const key = await deriveKey(passphrase, salt)
-  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encrypted)
+  let decrypted: ArrayBuffer
+  try {
+    decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, encrypted)
+  } catch {
+    // AES-GCM can't tell a wrong key from tampered bytes, and browsers report
+    // either as a bare "operation failed" — useless to show anyone.
+    throw new WrongPassphraseError()
+  }
   const json = new TextDecoder().decode(decrypted)
   const packet: SyncPacket = JSON.parse(json)
   if (packet.app !== 'enab-sync') throw new Error('Not a valid ENAB sync packet.')
@@ -210,6 +230,18 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
     db.attachments.toArray(),
   ])
 
+  // Starter categories are generated with fresh ids on every install, so a
+  // brand-new phone's "Rent" and the laptop's "Rent" are different records and
+  // a plain merge shows every one of them twice. A device with no accounts,
+  // transactions or assignments has nothing of its own in those tables, so
+  // its starter set simply gives way to the incoming one.
+  const pristine =
+    localAccounts.length === 0 && localTransactions.length === 0 && localEntries.every((e) => e.assigned === 0)
+  const incomingGroupIds = new Set((packet.categoryGroups ?? []).map((g) => g.id))
+  const incomingCategoryIds = new Set((packet.categories ?? []).map((c) => c.id))
+  const starterGroups = pristine ? localGroups.filter((g) => !incomingGroupIds.has(g.id)) : []
+  const starterCategories = pristine ? localCategories.filter((c) => !incomingCategoryIds.has(c.id)) : []
+
   const byId = <T extends { id: string }>(r: T) => r.id
   const accts = mergeRecords(localAccounts, packet.accounts ?? [], byId)
   const groups = mergeRecords(localGroups, packet.categoryGroups ?? [], byId)
@@ -236,6 +268,8 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
       'rw',
       [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes, db.attachments],
       async () => {
+        if (starterGroups.length) await db.categoryGroups.bulkDelete(starterGroups.map((g) => g.id))
+        if (starterCategories.length) await db.categories.bulkDelete(starterCategories.map((c) => c.id))
         if (accts.changed.length) await db.accounts.bulkPut(accts.changed)
         if (groups.changed.length) await db.categoryGroups.bulkPut(groups.changed)
         if (cats.changed.length) await db.categories.bulkPut(cats.changed)

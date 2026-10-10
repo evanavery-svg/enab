@@ -174,8 +174,35 @@ export async function exportTransactionsCsv(): Promise<string> {
   return toCsv(rows)
 }
 
+/**
+ * Hand a file to the person. On a phone that's the share sheet — AirDrop,
+ * Files, Mail — because a plain download from an installed web app on iOS
+ * often goes nowhere visible. Everywhere else, and whenever sharing isn't
+ * available or allowed, it's an ordinary download.
+ *
+ * Resolves `false` only when the person dismissed the share sheet.
+ */
+export async function saveFile(filename: string, content: BlobPart, type = 'application/json'): Promise<boolean> {
+  const touch = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches
+  if (touch && typeof navigator !== 'undefined' && navigator.canShare) {
+    const file = new File([content], filename, { type })
+    if (navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({ files: [file], title: filename })
+        return true
+      } catch (error) {
+        if (error instanceof DOMException && error.name === 'AbortError') return false
+        // NotAllowedError and friends (e.g. the tap's activation lapsed while
+        // the export was being built): fall through to a download.
+      }
+    }
+  }
+  downloadFile(filename, content, type)
+  return true
+}
+
 /** Hand the browser a file to save. */
-export function downloadFile(filename: string, content: string, type = 'application/json') {
+export function downloadFile(filename: string, content: BlobPart, type = 'application/json') {
   const blob = new Blob([content], { type })
   const url = URL.createObjectURL(blob)
   const link = document.createElement('a')

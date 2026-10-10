@@ -8,6 +8,7 @@ import { ConfirmDialog } from '../components/Modal'
 import { MoveMoneyModal } from '../components/MoveMoneyModal'
 import { AmountInput } from '../components/Fields'
 import { Modal } from '../components/Modal'
+import { BringBudgetOver } from '../components/BringBudgetOver'
 import { AccountFormModal } from '../components/AccountForm'
 import { AppFooter } from '../components/AppFooter'
 import { useData } from '../hooks/useData'
@@ -86,6 +87,9 @@ export default function BudgetPage() {
     return (
       <>
         <header className="topbar">
+          {/* Settings, restore and the rest must be reachable before the
+              first account exists, not only by an undiscoverable edge swipe. */}
+          <NavMenuButton />
           <h1>Budget</h1>
         </header>
         <div className="content">
@@ -99,6 +103,9 @@ export default function BudgetPage() {
             <button className="btn btn-primary btn-lg" style={{ marginTop: 12 }} onClick={() => setAddingAccount(true)}>
               <Icon name="plus" size={17} /> Add your first account
             </button>
+            <div className="onboarding-alt">
+              <BringBudgetOver />
+            </div>
           </div>
         </div>
         {addingAccount && <AccountFormModal onClose={() => setAddingAccount(false)} />}
@@ -585,6 +592,9 @@ function CategoryRow({
           value={state.assigned}
           onChange={(v) => setAssigned(month, category.id, v)}
           blankZero
+          // Blank keeps a fresh budget quiet, but a blank, borderless field on
+          // a phone gave no hint it could be tapped. A faint zero does.
+          placeholder={money(0, { noSymbol: true })}
         />
       </div>
 

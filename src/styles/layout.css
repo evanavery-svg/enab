@@ -127,9 +127,14 @@
   font-size: 20px;
   font-weight: 700;
   letter-spacing: -0.02em;
-  flex: 1;
+  /* Sized by its text, not by an even split with the spacer beside it, which
+     squeezed "All Accounts" onto two lines. Truncates if it truly can't fit. */
+  flex: 1 1 auto;
   min-width: 0;
   padding-left: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .topbar .subtitle { font-size: 12.5px; font-weight: 500; letter-spacing: 0; color: var(--text-dim); }
 .topbar .spacer { flex: 1; }
@@ -212,12 +217,25 @@
     z-index: 60;
     width: min(300px, 84vw);
     border-right: 1px solid var(--border);
-    box-shadow: var(--shadow-3);
     transform: translateX(-100%);
-    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+    /*
+     * Closed, the drawer is hidden outright rather than merely moved off
+     * screen: its drop shadow otherwise bleeds a grey smear down the left edge
+     * of every page, and its links stay reachable by Tab and screen readers.
+     * Visibility flips only after the slide-out finishes, so closing animates.
+     */
+    visibility: hidden;
+    transition:
+      transform 0.28s cubic-bezier(0.32, 0.72, 0, 1),
+      visibility 0s linear 0.28s;
     padding-top: env(safe-area-inset-top);
   }
-  .app.nav-open .sidebar { transform: translateX(0); }
+  .app.nav-open .sidebar {
+    transform: translateX(0);
+    visibility: visible;
+    box-shadow: var(--shadow-3);
+    transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+  }
   .app.nav-open .nav-scrim { display: block; }
   /* Keep the drawer's footer links clear of the home indicator. */
   .sidebar-foot { padding-bottom: calc(8px + env(safe-area-inset-bottom)); }

@@ -14,7 +14,7 @@ import {
   updateTransaction,
 } from '../../db/actions'
 import { INFLOW_CATEGORY_ID } from '../../db/seed'
-import { decryptPacket, encryptPacket, exportSyncPacket, mergeImport } from '../sync'
+import { decryptPacket, encryptPacket, exportSyncPacket, mergeImport, WrongPassphraseError } from '../sync'
 
 beforeEach(async () => {
   await clearAllTables()
@@ -55,7 +55,9 @@ describe('encryptPacket / decryptPacket', () => {
   it('rejects the wrong passphrase', async () => {
     const packet = await exportSyncPacket()
     const blob = await encryptPacket(packet, 'right')
-    await expect(decryptPacket(blob, 'wrong')).rejects.toThrow()
+    // A readable message, not the browser's bare "operation failed".
+    await expect(decryptPacket(blob, 'wrong')).rejects.toBeInstanceOf(WrongPassphraseError)
+    await expect(decryptPacket(blob, 'wrong')).rejects.toThrow(/passphrase doesn't open this file/)
   })
 
   it('rejects a file that is not a sync packet', async () => {
@@ -199,5 +201,37 @@ describe('mergeImport', () => {
     await mergeImport(packet)
 
     expect((await db.transactions.get(id))?.updatedAt).toBe(before)
+  })
+})
+
+describe('syncing onto a brand-new device', () => {
+  it("replaces the new device's starter categories instead of duplicating them", async () => {
+    // The laptop: set up, with one category renamed.
+    await createAccount({ name: 'Checking', type: 'checking', startingBalance: 100_000 })
+    const rent = (await db.categories.toArray()).find((c) => c.name === 'Rent/Mortgage')!
+    await db.categories.update(rent.id, { name: 'Rent' })
+    const laptop = await exportSyncPacket()
+    const laptopNames = (await db.categories.toArray()).filter((c) => !c.deleted).map((c) => c.name).sort()
+
+    // The phone: freshly opened, so it seeded its own starter categories.
+    await clearAllTables()
+    await ensureInitialized()
+    await mergeImport(laptop)
+
+    const phoneNames = (await db.categories.toArray()).filter((c) => !c.deleted).map((c) => c.name).sort()
+    expect(phoneNames).toEqual(laptopNames)
+    const groups = (await db.categoryGroups.toArray()).filter((g) => !g.deleted).map((g) => g.name)
+    expect(new Set(groups).size).toBe(groups.length)
+  })
+
+  it('still merges normally once the device has data of its own', async () => {
+    await createAccount({ name: 'Checking', type: 'checking', startingBalance: 100_000 })
+    const before = await db.categories.count()
+    const other = structuredClone(await exportSyncPacket())
+    other.categories.push({ ...other.categories[3], id: 'cat-from-elsewhere', name: 'Hobbies' })
+
+    await mergeImport(other)
+
+    expect(await db.categories.count()).toBe(before + 1)
   })
 })

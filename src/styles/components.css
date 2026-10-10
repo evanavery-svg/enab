@@ -301,6 +301,11 @@
   width: min(440px, calc(100vw - 24px));
 }
 @media (min-width: 900px) { .toasts { bottom: 20px; } }
+/* On a phone the Ready to Assign bar is docked at the bottom, and a toast
+   landing on it hid the one number you'd just changed. Sit above it instead. */
+@media (max-width: 899px) {
+  .app:has(.rta-wrap) .toasts { bottom: calc(env(safe-area-inset-bottom) + 100px); }
+}
 .toast {
   display: flex;
   align-items: center;
