@@ -1,0 +1,4 @@
+Transaction ID,Date,Time,Type,Name,Emoji,Category,Amount,Currency,Local amount,Local currency,Notes and #tags,Address,Receipt,Description,Category split,Money Out,Money In
+tx_0001,02/10/2026,08:15:00,Card payment,Pret A Manger,,Eating out,-4.50,GBP,-4.50,GBP,,,,PRET A MANGER LONDON,,-4.50,
+tx_0002,01/10/2026,09:00:00,Faster payment,Acme Ltd,,Income,2000.00,GBP,2000.00,GBP,,,,ACME LTD SALARY,,,2000.00
+tx_0003,30/09/2026,12:00:00,Card payment,Tesco,,Groceries,-23.10,GBP,-23.10,GBP,,,,TESCO STORES,,-23.10,

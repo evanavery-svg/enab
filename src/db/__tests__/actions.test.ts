@@ -11,6 +11,7 @@ import {
   setClearedStatus,
   enterScheduled,
   getAttachments,
+  importTransactions,
   ensureInitialized,
   reconcileAccount,
   runAutoEnter,
@@ -249,5 +250,73 @@ describe('bulk register actions', () => {
     for (const id of [plain, transfer, far]) expect((await db.transactions.get(id))!.deleted).toBe(true)
     // One commit means the UI recomputes once, not once per row.
     expect(seen.length - emissionsBefore).toBe(1)
+  })
+})
+
+describe('importTransactions', () => {
+  const row = (date: string, amount: number, payee: string, categoryId: string | null = null) => ({
+    date, amount, payee, memo: '', categoryId,
+  })
+
+  it("keeps today's balance when the history predates the opening balance", async () => {
+    const accountId = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 240_000, date: '2026-10-10' })
+    await importTransactions(
+      accountId,
+      [row('2026-09-01', 300_000, 'Acme Payroll'), row('2026-09-15', -60_000, 'Landlord'), row('2026-10-12', -1_000, 'Cafe')],
+      { keepBalance: true },
+    )
+    const live = (await db.transactions.where('accountId').equals(accountId).toArray()).filter((t) => !t.deleted)
+    const balance = live.reduce((s, t) => s + t.amount, 0)
+    // The two September rows were already inside the $2,400 typed in on Oct 10;
+    // only the Oct 12 coffee is new money movement.
+    expect(balance).toBe(240_000 - 1_000)
+    const opening = live.find((t) => t.isStartingBalance)!
+    expect(opening.date).toBe('2026-08-31')
+    expect(opening.amount).toBe(240_000 - (300_000 - 60_000))
+  })
+
+  it('adds history on top when asked not to keep the balance', async () => {
+    const accountId = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 240_000, date: '2026-10-10' })
+    await importTransactions(accountId, [row('2026-09-15', -60_000, 'Landlord')], { keepBalance: false })
+    const live = (await db.transactions.where('accountId').equals(accountId).toArray()).filter((t) => !t.deleted)
+    expect(live.reduce((s, t) => s + t.amount, 0)).toBe(180_000)
+  })
+
+  it('gives a known payee the category it had last time, including earlier rows in the same file', async () => {
+    const accountId = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 0 })
+    const groceries = (await db.categories.toArray()).find((c) => c.name === 'Groceries')!
+    const result = await importTransactions(accountId, [
+      row('2026-09-01', -4_000, 'Green Grocer', groceries.id),
+      row('2026-09-08', -3_500, 'Green Grocer'),
+      row('2026-09-09', -900, 'Somewhere New'),
+    ])
+    const txns = await db.transactions.where('accountId').equals(accountId).toArray()
+    expect(txns.find((t) => t.date === '2026-09-08')!.categoryId).toBe(groceries.id)
+    expect(txns.find((t) => t.date === '2026-09-09')!.categoryId).toBeNull()
+    expect(result.categorized).toBe(2)
+    // One payee per name, not one per row.
+    expect((await db.payees.toArray()).filter((p) => p.name === 'Green Grocer')).toHaveLength(1)
+  })
+
+  it('commits once, so the budget recomputes once for the whole file', async () => {
+    const accountId = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 0 })
+    const seen: number[] = []
+    const sub = liveQuery(() => db.transactions.count()).subscribe((n) => seen.push(n))
+    await new Promise((r) => setTimeout(r, 20))
+    const before = seen.length
+
+    await importTransactions(accountId, Array.from({ length: 50 }, (_, i) => row('2026-09-01', -100 - i, `Shop ${i}`)))
+    await new Promise((r) => setTimeout(r, 20))
+    sub.unsubscribe()
+
+    expect(seen.length - before).toBe(1)
+    expect(seen.at(-1)).toBe(50)
+  })
+
+  it('writes nothing at all if any row fails', async () => {
+    const accountId = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 0 })
+    const bad = { ...row('2026-09-02', -200, 'Shop'), date: undefined as unknown as string }
+    await expect(importTransactions(accountId, [row('2026-09-01', -100, 'Shop'), bad])).rejects.toThrow()
+    expect(await db.transactions.where('accountId').equals(accountId).count()).toBe(0)
   })
 })

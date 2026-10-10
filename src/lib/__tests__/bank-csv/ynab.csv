@@ -1,0 +1,4 @@
+"Account","Flag","Date","Payee","Category Group/Category","Category Group","Category","Memo","Outflow","Inflow","Cleared"
+"Checking","","10/02/2026","Starbucks","Everyday Expenses: Eating Out","Everyday Expenses","Eating Out","","$5.75","$0.00","Cleared"
+"Checking","","10/01/2026","Acme Corp","Inflow: Ready to Assign","Inflow","Ready to Assign","","$0.00","$2,400.00","Cleared"
+"Checking","","09/30/2026","Jane Doe","Bills: Rent/Mortgage","Bills","Rent/Mortgage","","$60.00","$0.00","Cleared"

@@ -4,119 +4,138 @@ import { Field } from './Fields'
 import { Icon } from './Icon'
 import { useData } from '../hooks/useData'
 import { toast } from '../state/ui'
-import { createTransaction, findOrCreatePayeeId } from '../db/actions'
-import { detectDelimiter, guessColumnRoles, normalizeDate, parseCsv, type ColumnRole } from '../lib/csv'
-import { parseMoney } from '../lib/money'
-import type { Cents, Id } from '../types'
+import { importTransactions } from '../db/actions'
+import {
+  analyzeCsv,
+  decodeCsvBytes,
+  findDuplicates,
+  readRows,
+  type ColumnRole,
+  type CsvAnalysis,
+} from '../lib/csvImport'
+import { formatDate, friendlyDate } from '../lib/dates'
+import type { Id } from '../types'
 
 const ROLE_LABELS: Record<ColumnRole, string> = {
   ignore: 'Ignore',
   date: 'Date',
   payee: 'Payee',
   memo: 'Memo',
-  amount: 'Amount (signed)',
-  outflow: 'Outflow',
-  inflow: 'Inflow',
+  amount: 'Amount',
+  outflow: 'Outflow (money out)',
+  inflow: 'Inflow (money in)',
   category: 'Category',
+  direction: 'Debit / credit',
 }
 
-interface Draft {
-  date: string
-  payee: string
-  memo: string
-  amount: Cents
-  categoryName: string
-}
+/** Names a file might use for money that should land in Ready to Assign. */
+const INFLOW_ALIASES = ['ready to assign', 'inflow: ready to assign', 'income', 'to be budgeted', 'paycheck', 'salary']
 
-export function CsvImportModal({ onClose }: { onClose: () => void }) {
-  const { openAccounts, categories, money, format } = useData()
-  const [accountId, setAccountId] = useState<Id>(openAccounts[0]?.id ?? '')
+const sectionLabel = {
+  display: 'block',
+  marginBottom: 6,
+  fontSize: 12,
+  fontWeight: 650,
+  textTransform: 'uppercase',
+  letterSpacing: '0.03em',
+  color: 'var(--text-dim)',
+} as const
+
+export function CsvImportModal({ onClose, accountId: initialAccountId }: { onClose: () => void; accountId?: Id }) {
+  const { openAccounts, categories, transactions, balances, settings, money } = useData()
+  const [accountId, setAccountId] = useState<Id>(initialAccountId ?? openAccounts[0]?.id ?? '')
   const [text, setText] = useState('')
-  const [hasHeader, setHasHeader] = useState(true)
+  const [fileName, setFileName] = useState('')
+  const [analysis, setAnalysis] = useState<CsvAnalysis | null>(null)
+  // Everything below starts as detected and can be corrected by hand.
   const [roles, setRoles] = useState<ColumnRole[]>([])
   const [dayFirst, setDayFirst] = useState(false)
+  const [spendingPositive, setSpendingPositive] = useState(false)
+  const [hasHeader, setHasHeader] = useState(true)
+  const [keepBalance, setKeepBalance] = useState(true)
+  const [showColumns, setShowColumns] = useState(false)
   const [importing, setImporting] = useState(false)
 
-  const rows = useMemo(() => (text.trim() ? parseCsv(text, detectDelimiter(text)) : []), [text])
-  const header = hasHeader ? (rows[0] ?? []) : rows[0]?.map((_, i) => `Column ${i + 1}`) ?? []
-  const bodyRows = hasHeader ? rows.slice(1) : rows
-
-  function loadText(next: string) {
+  function load(next: string, name = '') {
     setText(next)
-    const parsed = parseCsv(next, detectDelimiter(next))
-    if (parsed[0]) setRoles(guessColumnRoles(parsed[0]))
+    setFileName(name)
+    if (!next.trim()) {
+      setAnalysis(null)
+      return
+    }
+    const a = analyzeCsv(next, { preferDayFirst: settings.dateFormat.startsWith('dd') })
+    setAnalysis(a)
+    setRoles(a.roles)
+    setDayFirst(a.dayFirst)
+    setSpendingPositive(a.spendingPositive)
+    setHasHeader(a.headerRow !== null)
+    // Only make someone look at columns when detection came up short.
+    setShowColumns(!a.roles.includes('date') || !a.roles.some((r) => r === 'amount' || r === 'outflow' || r === 'inflow'))
   }
 
-  const drafts = useMemo<Draft[]>(() => {
-    if (bodyRows.length === 0) return []
-    const roleIndex = (role: ColumnRole) => roles.indexOf(role)
-    const di = roleIndex('date')
-    const pi = roleIndex('payee')
-    const mi = roleIndex('memo')
-    const ai = roleIndex('amount')
-    const oi = roleIndex('outflow')
-    const ii = roleIndex('inflow')
-    const ci = roleIndex('category')
+  const body = useMemo(() => {
+    if (!analysis) return []
+    const start = analysis.headerRow ?? -1
+    // The header toggle moves the line between header and data, nothing more.
+    if (hasHeader) return analysis.headerRow === null ? analysis.body.slice(1) : analysis.body
+    return start >= 0 ? analysis.rows.slice(start) : analysis.body
+  }, [analysis, hasHeader])
 
-    const out: Draft[] = []
-    for (const row of bodyRows) {
-      const date = di >= 0 ? normalizeDate(row[di] ?? '', dayFirst) : null
-      if (!date) continue
+  const { rows, skipped } = useMemo(
+    () =>
+      analysis
+        ? readRows(body, { roles, dayFirst, spendingPositive, decimalComma: analysis.decimalComma })
+        : { rows: [], skipped: 0 },
+    [analysis, body, roles, dayFirst, spendingPositive],
+  )
 
-      let amount: Cents | null = null
-      if (ai >= 0) {
-        amount = parseMoney(row[ai] ?? '', format)
-      } else {
-        const outflow = oi >= 0 ? (parseMoney(row[oi] ?? '', format) ?? 0) : 0
-        const inflow = ii >= 0 ? (parseMoney(row[ii] ?? '', format) ?? 0) : 0
-        // Bank exports write outflows as positive numbers in their own column.
-        amount = inflow !== 0 ? Math.abs(inflow) : -Math.abs(outflow)
-      }
-      if (amount === null) continue
+  const accountTxns = useMemo(() => transactions.filter((t) => t.accountId === accountId), [transactions, accountId])
+  const duplicate = useMemo(() => findDuplicates(rows, accountTxns), [rows, accountTxns])
+  const fresh = rows.filter((_, i) => !duplicate[i])
+  const dupeCount = rows.length - fresh.length
 
-      out.push({
-        date,
-        payee: pi >= 0 ? (row[pi] ?? '').trim() : '',
-        memo: mi >= 0 ? (row[mi] ?? '').trim() : '',
-        amount,
-        categoryName: ci >= 0 ? (row[ci] ?? '').trim() : '',
-      })
-    }
-    return out
-  }, [bodyRows, roles, dayFirst, format])
+  const opening = accountTxns.find((t) => t.isStartingBalance)
+  const predating = opening ? fresh.filter((r) => r.date <= opening.date) : []
+  const offerKeepBalance = predating.length > 0
+  const currentBalance = balances.get(accountId)?.working ?? 0
+  const added = fresh.reduce((sum, r) => sum + r.amount, 0)
+  const balanceAfter =
+    currentBalance + added - (offerKeepBalance && keepBalance ? predating.reduce((sum, r) => sum + r.amount, 0) : 0)
 
-  const skipped = bodyRows.length - drafts.length
+  const amountCol = roles.indexOf('amount')
+  const showSign = amountCol >= 0 && !roles.includes('direction')
+  const account = openAccounts.find((a) => a.id === accountId)
+  const span = fresh.length
+    ? [fresh.reduce((m, r) => (r.date < m ? r.date : m), fresh[0].date), fresh.reduce((m, r) => (r.date > m ? r.date : m), fresh[0].date)]
+    : null
 
   async function runImport() {
-    if (!accountId || drafts.length === 0) return
+    if (!accountId || fresh.length === 0) return
     setImporting(true)
     try {
       const byName = new Map(categories.filter((c) => !c.hidden).map((c) => [c.name.toLowerCase(), c.id]))
-      // Exports write the inflow category under several names; accept them all
-      // so income doesn't silently land as uncategorised.
       const inflow = categories.find((c) => c.isInflow)
-      if (inflow) {
-        for (const alias of ['ready to assign', 'inflow: ready to assign', 'income', 'to be budgeted']) {
-          if (!byName.has(alias)) byName.set(alias, inflow.id)
-        }
-      }
-      for (const draft of drafts) {
-        const payeeId = draft.payee ? await findOrCreatePayeeId(draft.payee) : null
-        await createTransaction({
-          accountId,
-          date: draft.date,
-          amount: draft.amount,
-          payeeId,
-          // Only match categories that already exist; importing never invents them.
-          categoryId: byName.get(draft.categoryName.toLowerCase()) ?? null,
-          memo: draft.memo,
-          cleared: 'cleared',
-        })
-      }
-      toast(`Imported ${drafts.length} transaction${drafts.length === 1 ? '' : 's'}`)
+      if (inflow) for (const alias of INFLOW_ALIASES) if (!byName.has(alias)) byName.set(alias, inflow.id)
+
+      const result = await importTransactions(
+        accountId,
+        fresh.map((r) => ({
+          date: r.date,
+          amount: r.amount,
+          payee: r.payee,
+          memo: r.memo,
+          // Only names that already exist match; importing never invents categories.
+          categoryId: r.category ? (byName.get(r.category.toLowerCase()) ?? null) : null,
+        })),
+        { keepBalance: offerKeepBalance && keepBalance },
+      )
+      const parts = [`Imported ${result.imported} transaction${result.imported === 1 ? '' : 's'}`]
+      if (result.categorized) parts.push(`${result.categorized} already categorized`)
+      if (dupeCount) parts.push(`${dupeCount} duplicate${dupeCount === 1 ? '' : 's'} skipped`)
+      toast(parts.join(' · '))
       onClose()
     } catch {
-      toast('Import failed — nothing else was changed', { tone: 'danger' })
+      toast('Import failed — nothing was changed', { tone: 'danger' })
     } finally {
       setImporting(false)
     }
@@ -124,117 +143,209 @@ export function CsvImportModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal
-      title="Import transactions from CSV"
+      title="Import transactions"
       wide
       onClose={onClose}
       footer={
         <>
-          <span className="dim" style={{ marginRight: 'auto', fontSize: 13 }}>
-            {drafts.length} ready{skipped > 0 ? ` · ${skipped} skipped` : ''}
-          </span>
           <button className="btn" onClick={onClose}>
             Cancel
           </button>
-          <button className="btn btn-primary" onClick={runImport} disabled={importing || drafts.length === 0 || !accountId}>
-            Import {drafts.length || ''}
+          <button
+            className="btn btn-primary"
+            onClick={runImport}
+            disabled={importing || fresh.length === 0 || !accountId}
+          >
+            {importing
+              ? 'Importing…'
+              : rows.length > 0 && fresh.length === 0
+                ? 'Nothing new'
+                : `Import ${fresh.length || ''}`}
           </button>
         </>
       }
     >
-      <Field label="Import into">
-        <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-          {openAccounts.map((a) => (
-            <option key={a.id} value={a.id}>
-              {a.name}
-            </option>
-          ))}
-        </select>
-      </Field>
+      {openAccounts.length === 0 ? (
+        <p className="dim">Add the account these transactions belong to first, then import into it.</p>
+      ) : (
+        <Field label="Import into">
+          <select className="select" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+            {openAccounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </select>
+        </Field>
+      )}
 
-      <Field label="CSV file">
+      <Field label="CSV file from your bank" hint={fileName ? undefined : 'Download it from your bank’s website or app — any bank’s layout works.'}>
         <input
           className="input"
           type="file"
-          accept=".csv,text/csv,text/plain"
+          accept=".csv,text/csv,text/plain,.txt"
           onChange={async (e) => {
             const file = e.target.files?.[0]
-            if (file) loadText(await file.text())
+            if (file) load(decodeCsvBytes(await file.arrayBuffer()), file.name)
           }}
         />
       </Field>
 
-      <Field label="…or paste the rows">
-        <textarea
-          className="textarea"
-          style={{ fontFamily: 'var(--font-num)' }}
-          placeholder={'Date,Payee,Memo,Outflow,Inflow\n2026-08-01,Grocer,,42.10,'}
-          value={text}
-          onChange={(e) => loadText(e.target.value)}
-        />
-      </Field>
+      <details style={{ marginBottom: 14 }}>
+        <summary className="dim" style={{ cursor: 'pointer', fontSize: 13.5, marginBottom: 8 }}>
+          Or paste the rows instead
+        </summary>
+        <Field label="…or paste the rows">
+          <textarea
+            className="textarea"
+            style={{ fontFamily: 'var(--font-num)' }}
+            placeholder={'Date,Description,Amount\n10/02/2026,Grocer,-42.10'}
+            value={fileName ? '' : text}
+            onChange={(e) => load(e.target.value)}
+          />
+        </Field>
+      </details>
 
-      {rows.length > 0 && (
+      {analysis && (
         <>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
-            <label className="checkbox">
-              <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} />
-              First row is a header
-            </label>
-            <label className="checkbox">
-              <input type="checkbox" checked={dayFirst} onChange={(e) => setDayFirst(e.target.checked)} />
-              Dates are day/month/year
-            </label>
-          </div>
-
-          <span className="label" style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-dim)' }}>
-            Match the columns
-          </span>
-          <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', marginBottom: 16 }}>
-            {header.map((h, i) => (
-              <div key={i}>
-                <div className="truncate faint" style={{ fontSize: 12, marginBottom: 3 }}>
-                  {h || `Column ${i + 1}`}
-                </div>
-                <select
-                  className="select"
-                  value={roles[i] ?? 'ignore'}
-                  onChange={(e) => setRoles(roles.map((r, j) => (i === j ? (e.target.value as ColumnRole) : r)))}
-                >
-                  {(Object.keys(ROLE_LABELS) as ColumnRole[]).map((role) => (
-                    <option key={role} value={role}>
-                      {ROLE_LABELS[role]}
-                    </option>
-                  ))}
-                </select>
+          <div className="card card-pad" style={{ marginBottom: 14, fontSize: 14, display: 'grid', gap: 8 }}>
+            {rows.length === 0 ? (
+              <div>
+                <strong>No transactions found yet.</strong>{' '}
+                <span className="dim">
+                  {!roles.includes('date')
+                    ? 'Pick which column holds the date below.'
+                    : 'Pick which column holds the amount below.'}
+                </span>
               </div>
-            ))}
+            ) : (
+              <div>
+                <strong>
+                  {rows.length} transaction{rows.length === 1 ? '' : 's'}
+                </strong>
+                {span && (
+                  <span className="dim">
+                    {' '}
+                    from {friendlyDate(span[0], settings.dateFormat)} to {friendlyDate(span[1], settings.dateFormat)}
+                  </span>
+                )}
+                {dupeCount > 0 && (
+                  <div className="dim" style={{ marginTop: 4 }}>
+                    {dupeCount === rows.length ? 'All of them are' : `${dupeCount} of them are`} already in {account?.name ?? 'this account'} and
+                    will be skipped.
+                  </div>
+                )}
+                {skipped > 0 && (
+                  <div className="dim" style={{ marginTop: 4 }}>
+                    {skipped} line{skipped === 1 ? '' : 's'} without a date or amount (like totals or an opening-balance line)
+                    left out.
+                  </div>
+                )}
+              </div>
+            )}
+
+            {showSign && rows.length > 0 && (
+              <div>
+                <div className="dim" style={{ fontSize: 12.5, marginBottom: 5 }}>
+                  In this file, purchases are written as
+                </div>
+                <div className="segmented" style={{ maxWidth: 360 }}>
+                  <button aria-pressed={!spendingPositive} onClick={() => setSpendingPositive(false)}>
+                    Negative (−5.00)
+                  </button>
+                  <button aria-pressed={spendingPositive} onClick={() => setSpendingPositive(true)}>
+                    Positive (5.00)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {(!analysis.dateOrderKnown || dayFirst !== analysis.dayFirst) && rows.length > 0 && (
+              <label className="checkbox">
+                <input type="checkbox" checked={dayFirst} onChange={(e) => setDayFirst(e.target.checked)} />
+                Dates are day/month/year (e.g. 02/10 is 2 October)
+              </label>
+            )}
+
+            {offerKeepBalance && (
+              <label className="checkbox" style={{ alignItems: 'flex-start' }}>
+                <input type="checkbox" checked={keepBalance} onChange={(e) => setKeepBalance(e.target.checked)} />
+                <span>
+                  Keep {account?.name}’s balance at {money(currentBalance)}
+                  <span className="dim" style={{ display: 'block', fontSize: 12.5 }}>
+                    {predating.length} of these are from before you added the account, so they’re already part of the
+                    balance you entered.
+                  </span>
+                </span>
+              </label>
+            )}
+
+            {fresh.length > 0 && (
+              <div className="dim" style={{ fontSize: 13 }}>
+                {account?.name} balance after import: <strong style={{ color: 'var(--text)' }}>{money(balanceAfter)}</strong>
+              </div>
+            )}
           </div>
 
-          {drafts.length > 0 && (
+          {rows.length > 0 && (
             <>
-              <span className="label" style={{ display: 'block', marginBottom: 6, fontSize: 12, fontWeight: 650, textTransform: 'uppercase', letterSpacing: '0.03em', color: 'var(--text-dim)' }}>
-                Preview
-              </span>
-              <div className="card" style={{ overflow: 'hidden' }}>
-                {drafts.slice(0, 5).map((d, i) => (
-                  <div className="list-row" key={i}>
+              <span style={sectionLabel}>Preview</span>
+              <div className="card" style={{ overflow: 'hidden', marginBottom: 6 }}>
+                {rows.slice(0, 6).map((r, i) => (
+                  <div className="list-row" key={i} style={duplicate[i] ? { opacity: 0.45 } : undefined}>
                     <span className="faint" style={{ fontFamily: 'var(--font-num)', fontSize: 12.5, width: 88, flex: 'none' }}>
-                      {d.date}
+                      {formatDate(r.date, settings.dateFormat)}
                     </span>
-                    <span className="grow truncate">{d.payee || 'No payee'}</span>
-                    <span className={`num ${d.amount > 0 ? 'pos' : ''}`} style={{ fontFamily: 'var(--font-num)' }}>
-                      {money(d.amount)}
+                    <span className="grow truncate" style={duplicate[i] ? { textDecoration: 'line-through' } : undefined}>
+                      {r.payee || 'No payee'}
+                    </span>
+                    <span className={`num ${r.amount > 0 ? 'pos' : ''}`} style={{ fontFamily: 'var(--font-num)' }}>
+                      {money(r.amount, { forceSign: r.amount > 0 })}
                     </span>
                   </div>
                 ))}
               </div>
-              {drafts.length > 5 && (
-                <p className="hint" style={{ marginTop: 6 }}>
-                  <Icon name="info" size={13} /> …and {drafts.length - 5} more.
+              {rows.length > 6 && (
+                <p className="hint" style={{ marginBottom: 14 }}>
+                  <Icon name="info" size={13} /> …and {rows.length - 6} more.
                 </p>
               )}
             </>
           )}
+
+          <details open={showColumns} onToggle={(e) => setShowColumns((e.target as HTMLDetailsElement).open)}>
+            <summary className="dim" style={{ cursor: 'pointer', fontSize: 13.5, marginBottom: 8 }}>
+              Columns {showColumns ? '' : '(detected automatically — change if something looks wrong)'}
+            </summary>
+            <label className="checkbox" style={{ marginBottom: 10 }}>
+              <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} />
+              The file has a header row
+            </label>
+            <div style={{ display: 'grid', gap: 8, gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))' }}>
+              {analysis.labels.map((label, i) => (
+                <div key={i}>
+                  <div className="truncate faint" style={{ fontSize: 12, marginBottom: 3 }} title={label}>
+                    {label}
+                  </div>
+                  <select
+                    className="select"
+                    value={roles[i] ?? 'ignore'}
+                    onChange={(e) => {
+                      const role = e.target.value as ColumnRole
+                      // One column per role: choosing it here frees it elsewhere.
+                      setRoles(analysis.labels.map((_, j) => (j === i ? role : roles[j] === role && role !== 'ignore' ? 'ignore' : (roles[j] ?? 'ignore'))))
+                    }}
+                  >
+                    {(Object.keys(ROLE_LABELS) as ColumnRole[]).map((role) => (
+                      <option key={role} value={role}>
+                        {ROLE_LABELS[role]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
+          </details>
         </>
       )}
     </Modal>

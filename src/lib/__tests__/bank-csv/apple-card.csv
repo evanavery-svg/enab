@@ -1,0 +1,4 @@
+Transaction Date,Clearing Date,Description,Merchant,Category,Type,Amount (USD),Purchased By
+10/02/2026,10/03/2026,"STARBUCKS 12345 SEATTLE WA","Starbucks","Restaurants","Purchase","5.75","John Doe"
+09/28/2026,09/28/2026,"ACH DEPOSIT INTERNET TRANSFER","Payment","Payment","Payment","-500.00","John Doe"
+09/27/2026,09/28/2026,"WHOLEFDS 10234","Whole Foods","Grocery","Purchase","84.12","John Doe"

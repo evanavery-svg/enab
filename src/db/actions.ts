@@ -1,7 +1,7 @@
 import { db } from './db'
 import { CREDIT_GROUP_ID, INFLOW_CATEGORY_ID, buildSeed, defaultSettings } from './seed'
 import { uid } from '../lib/id'
-import { monthOf, today } from '../lib/dates'
+import { addDays, monthOf, today } from '../lib/dates'
 import { nextOccurrence } from '../budget/recurrence'
 import type {
   Account,
@@ -640,6 +640,88 @@ export async function moveTransactionsToAccount(ids: Id[], accountId: Id): Promi
       if (!t || t.transferTransactionId) continue
       await db.transactions.update(id, { accountId })
     }
+  })
+}
+
+/* ------------------------------------------------------------------ */
+/* Import                                                              */
+/* ------------------------------------------------------------------ */
+
+export interface ImportedTransaction {
+  date: ISODate
+  amount: Cents
+  payee: string
+  memo: string
+  /** A category named in the file, already matched to one of ours. */
+  categoryId: Id | null
+}
+
+/**
+ * Bring a bank file in as one commit: all of it or none of it, and one budget
+ * recompute rather than one per row.
+ *
+ * A payee seen before gets the category it had last time, so the second
+ * month's import arrives mostly categorised.
+ *
+ * `keepBalance` is for history older than the opening balance someone typed
+ * in. That balance already contains those transactions, so adding them on top
+ * would count them twice. Instead the opening balance moves to the day before
+ * the earliest of them and shrinks by their total: the history appears, and
+ * today's balance stays exactly what the bank says.
+ */
+export async function importTransactions(
+  accountId: Id,
+  rows: ImportedTransaction[],
+  opts: { keepBalance?: boolean } = {},
+): Promise<{ imported: number; categorized: number }> {
+  return db.transaction('rw', db.transactions, db.payees, db.accounts, db.categories, async () => {
+    const payeeByName = new Map(
+      (await db.payees.toArray())
+        .filter((p) => !p.deleted && !p.transferAccountId)
+        .map((p) => [p.name.toLowerCase(), p]),
+    )
+    const liveCategory = new Set((await db.categories.toArray()).filter((c) => !c.deleted).map((c) => c.id))
+
+    let categorized = 0
+    for (const row of [...rows].sort((a, b) => a.date.localeCompare(b.date))) {
+      let payee = row.payee ? payeeByName.get(row.payee.toLowerCase()) : undefined
+      if (row.payee && !payee) {
+        payee = { id: uid('payee'), name: row.payee, deleted: false }
+        await db.payees.put(payee)
+        payeeByName.set(row.payee.toLowerCase(), payee)
+      }
+      const remembered = payee?.lastCategoryId && liveCategory.has(payee.lastCategoryId) ? payee.lastCategoryId : null
+      const categoryId = row.categoryId ?? remembered
+      if (categoryId) categorized++
+
+      await createTransaction({
+        accountId,
+        date: row.date,
+        amount: row.amount,
+        payeeId: payee?.id ?? null,
+        categoryId,
+        memo: row.memo,
+        cleared: 'cleared',
+      })
+      // createTransaction records this on the payee; keep the cache in step so
+      // later rows in the same file benefit too.
+      if (payee && categoryId) payee.lastCategoryId = categoryId
+    }
+
+    if (opts.keepBalance) {
+      const opening = (await db.transactions.where('accountId').equals(accountId).toArray()).find(
+        (t) => t.isStartingBalance && !t.deleted,
+      )
+      const earlier = opening ? rows.filter((r) => r.date <= opening.date) : []
+      if (opening && earlier.length) {
+        const total = earlier.reduce((sum, r) => sum + r.amount, 0)
+        const first = earlier.reduce((min, r) => (r.date < min ? r.date : min), earlier[0].date)
+        const date = addDays(first, -1)
+        await db.transactions.update(opening.id, { amount: opening.amount - total, date, month: monthOf(date) })
+      }
+    }
+
+    return { imported: rows.length, categorized }
   })
 }
 

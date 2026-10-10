@@ -1,0 +1,11 @@
+Description,,Summary Amt.
+Beginning balance as of 09/01/2026,,"1,000.00"
+Total credits,,"2,400.00"
+Total debits,,"-65.75"
+Ending balance as of 10/03/2026,,"3,334.25"
+
+Date,Description,Amount,Running Bal.
+09/01/2026,Beginning balance as of 09/01/2026,,"1,000.00"
+10/01/2026,"ACME CORP DES:PAYROLL ID:XXXXX INDN:DOE,JOHN CO ID:XXXXX PPD","2,400.00","3,400.00"
+10/02/2026,"STARBUCKS 12345 10/02 PURCHASE SEATTLE WA","-5.75","3,394.25"
+10/03/2026,"Zelle payment to JANE DOE Conf# abc123","-60.00","3,334.25"

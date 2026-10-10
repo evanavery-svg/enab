@@ -305,6 +305,9 @@
    landing on it hid the one number you'd just changed. Sit above it instead. */
 @media (max-width: 899px) {
   .app:has(.rta-wrap) .toasts { bottom: calc(env(safe-area-inset-bottom) + 100px); }
+  /* A sheet's Save/Import buttons sit along the bottom edge, so while one is
+     open, toasts move to the top rather than covering them. */
+  body:has(.modal) .toasts { top: calc(env(safe-area-inset-top) + 12px); bottom: auto; }
 }
 .toast {
   display: flex;

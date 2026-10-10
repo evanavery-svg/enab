@@ -6,6 +6,7 @@ import { MenuButton } from '../components/Menu'
 import { ConfirmDialog } from '../components/Modal'
 import { AccountFormModal } from '../components/AccountForm'
 import { ReconcileModal } from '../components/ReconcileModal'
+import { CsvImportModal } from '../components/CsvImportModal'
 import { CategorySelect } from '../components/CategorySelect'
 import { useData } from '../hooks/useData'
 import { toast, useUi } from '../state/ui'
@@ -51,6 +52,7 @@ export default function RegisterPage() {
   const [selected, setSelected] = useState<Set<Id>>(new Set())
   const [selectMode, setSelectMode] = useState(false)
   const [reconciling, setReconciling] = useState(false)
+  const [importingCsv, setImportingCsv] = useState(false)
   const [editing, setEditing] = useState(false)
   const [confirmDeleteAccount, setConfirmDeleteAccount] = useState(false)
   const [confirmDeleteTxns, setConfirmDeleteTxns] = useState(false)
@@ -225,6 +227,14 @@ export default function RegisterPage() {
               </button>
               <button
                 onClick={() => {
+                  setImportingCsv(true)
+                  close()
+                }}
+              >
+                <Icon name="upload" size={16} /> Import from bank CSV
+              </button>
+              <button
+                onClick={() => {
                   setEditing(true)
                   close()
                 }}
@@ -361,9 +371,14 @@ export default function RegisterPage() {
                 : 'Try a different search or filter.'}
             </p>
             {rows.length === 0 && (
-              <button className="btn btn-primary" style={{ marginTop: 12 }} onClick={() => openTxn({ accountId: account.id })}>
-                <Icon name="plus" size={16} /> Add transaction
-              </button>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 12 }}>
+                <button className="btn btn-primary" onClick={() => openTxn({ accountId: account.id })}>
+                  <Icon name="plus" size={16} /> Add transaction
+                </button>
+                <button className="btn" onClick={() => setImportingCsv(true)}>
+                  <Icon name="upload" size={16} /> Import from bank CSV
+                </button>
+              </div>
             )}
           </div>
         ) : (
@@ -434,6 +449,7 @@ export default function RegisterPage() {
       )}
 
       {reconciling && <ReconcileModal account={account} onClose={() => setReconciling(false)} />}
+      {importingCsv && <CsvImportModal accountId={account.id} onClose={() => setImportingCsv(false)} />}
       {editing && <AccountFormModal account={account} onClose={() => setEditing(false)} />}
       {confirmDeleteAccount && (
         <ConfirmDialog

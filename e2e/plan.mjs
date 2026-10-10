@@ -74,6 +74,7 @@ await step('Auto-Budget invites an import when there is no history', async () =>
 await step('import history from the Auto-Budget page', async () => {
   await page.locator('.topbar').getByRole('button', { name: 'Import CSV' }).click()
   await page.waitForTimeout(400)
+  await page.getByText('Or paste the rows instead').click()
   await page.getByLabel('…or paste the rows').fill(buildCsv())
   await page.waitForTimeout(700)
   await page.locator('.modal-foot').getByRole('button', { name: /^Import/ }).click()

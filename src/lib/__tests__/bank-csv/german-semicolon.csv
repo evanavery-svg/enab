@@ -1,0 +1,4 @@
+Buchungstag;Valutadatum;Buchungstext;Verwendungszweck;Beguenstigter/Zahlungspflichtiger;Betrag;Waehrung
+02.10.26;02.10.26;KARTENZAHLUNG;REWE SAGT DANKE;REWE Markt GmbH;-23,45;EUR
+01.10.26;01.10.26;GEHALT;Gehalt Oktober;ACME GmbH;2.400,00;EUR
+30.09.26;30.09.26;LASTSCHRIFT;Miete Oktober;Hausverwaltung;-850,00;EUR
