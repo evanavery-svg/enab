@@ -9,7 +9,7 @@ import type {
   MonthSummary,
   Transaction,
 } from '../types'
-import { addMonths, currentMonth, monthDiff, monthRange } from '../lib/dates'
+import { addMonths, currentMonth, monthRange } from '../lib/dates'
 import { evaluateGoal } from './goals'
 
 export interface BudgetInput {
@@ -202,6 +202,42 @@ export function computeBudget(input: BudgetInput): BudgetResult {
   const last = [latest ?? now, through, now].reduce((a, b) => (a > b ? a : b))
   const months = monthRange(first, last)
 
+  /* ---------------- Debt balances for debt goals ---------------- */
+
+  // A debt goal needs its card's balance at the end of each month. Rescanning
+  // every transaction for every month made one debt goal cost more than the
+  // rest of the budget combined, so balances are rolled forward alongside the
+  // months instead.
+  const debtAccounts = new Set(
+    budgetCategories.filter((c) => c.goal?.type === 'debt' && c.linkedAccountId).map((c) => c.linkedAccountId!),
+  )
+  const debtNets = new Map<Id, Map<MonthKey, Cents>>()
+  if (debtAccounts.size) {
+    for (const id of debtAccounts) debtNets.set(id, new Map())
+    for (const t of transactions) {
+      if (t.deleted) continue
+      const nets = debtNets.get(t.accountId)
+      if (!nets) continue
+      const m = t.month || t.date.slice(0, 7)
+      nets.set(m, (nets.get(m) ?? 0) + t.amount)
+    }
+  }
+  /** accountId -> [month, net] ascending, consumed by a cursor as months advance. */
+  const debtTimeline = new Map(
+    [...debtNets].map(([id, nets]) => [id, [...nets].sort((a, b) => (a[0] < b[0] ? -1 : 1))]),
+  )
+  const debtCursor = new Map<Id, number>()
+  const debtRunning = new Map<Id, Cents>()
+  const balanceThrough = (accountId: Id, month: MonthKey): Cents => {
+    const timeline = debtTimeline.get(accountId) ?? []
+    let i = debtCursor.get(accountId) ?? 0
+    let sum = debtRunning.get(accountId) ?? 0
+    while (i < timeline.length && timeline[i][0] <= month) sum += timeline[i++][1]
+    debtCursor.set(accountId, i)
+    debtRunning.set(accountId, sum)
+    return sum
+  }
+
   /* ---------------- Pass 2: roll the months forward ---------------- */
 
   const categoryStates = new Map<MonthKey, Map<Id, CategoryMonthState>>()
@@ -297,7 +333,7 @@ export function computeBudget(input: BudgetInput): BudgetResult {
       if (!state || !cat.goal) continue
       const debtBalance =
         cat.goal.type === 'debt' && cat.linkedAccountId
-          ? Math.abs(Math.min(0, accountBalanceThrough(transactions, cat.linkedAccountId, month)))
+          ? Math.abs(Math.min(0, balanceThrough(cat.linkedAccountId, month)))
           : undefined
       const result = evaluateGoal(cat.goal, {
         month,
@@ -377,17 +413,6 @@ function carryFrom(prev: CategoryMonthState): Cents {
 }
 
 const clamp = (n: number, lo: number, hi: number) => (n < lo ? lo : n > hi ? hi : n)
-
-/** Account balance including every transaction up to the end of `month`. */
-function accountBalanceThrough(transactions: Transaction[], accountId: Id, month: MonthKey): Cents {
-  let sum = 0
-  for (const t of transactions) {
-    if (t.deleted || t.accountId !== accountId) continue
-    if (monthDiff(t.month || t.date.slice(0, 7), month) < 0) continue
-    sum += t.amount
-  }
-  return sum
-}
 
 /* ------------------------------------------------------------------ */
 /* Account balances                                                    */

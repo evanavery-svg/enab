@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import { computeBudget } from '../engine'
 import { computeAgeOfMoney } from '../ageOfMoney'
+import { evaluateGoal } from '../goals'
 import { account, category, entry, resetIds, transfer, txn } from './helpers'
 import type { Category } from '../../types'
 
@@ -369,5 +370,44 @@ describe('age of money', () => {
     )
 
     expect(result.days).toBe(30)
+  })
+})
+
+describe('debt goals', () => {
+  it("size the goal from the card's balance at the end of each month", () => {
+    const card = account('Visa', 'creditCard')
+    const payment = category('Visa', { linkedAccountId: card.id })
+    card.paymentCategoryId = payment.id
+    payment.goal = { type: 'debt', amount: 0, startMonth: '2025-01', targetMonth: '2025-12' }
+    const inflow = inflowCategory()
+    const dining = category('Dining')
+
+    // Charges and a payment in different months, plus a deleted charge that
+    // must not count, so each month's balance is different.
+    const transactions = [
+      txn(card.id, '2025-01-10', -40_000, { categoryId: dining.id }),
+      txn(card.id, '2025-02-15', -25_000, { categoryId: dining.id }),
+      txn(card.id, '2025-03-01', 30_000, { transferAccountId: null }),
+      { ...txn(card.id, '2025-03-20', -99_999, { categoryId: dining.id }), deleted: true },
+    ]
+    const result = computeBudget({ accounts: [card], categories: [inflow, dining, payment], transactions, entries: [], throughMonth: '2025-04' })
+
+    const owedThrough = (month: string) =>
+      Math.abs(Math.min(0, transactions.filter((t) => !t.deleted && t.date.slice(0, 7) <= month).reduce((s, t) => s + t.amount, 0)))
+    const expected = { '2025-01': 40_000, '2025-02': 65_000, '2025-03': 35_000, '2025-04': 35_000 }
+
+    for (const [month, owed] of Object.entries(expected)) {
+      expect(owedThrough(month)).toBe(owed)
+      const state = result.categoryStates.get(month)!.get(payment.id)!
+      const want = evaluateGoal(payment.goal!, {
+        month,
+        carriedOver: state.carriedOver,
+        assigned: state.assigned,
+        activity: state.activity,
+        debtBalance: owed,
+      })
+      expect(state.goalTarget).toBe(want.target)
+      expect(state.goalUnderfunded).toBe(want.underfunded)
+    }
   })
 })

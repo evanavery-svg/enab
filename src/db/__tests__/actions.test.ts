@@ -1,11 +1,14 @@
 import 'fake-indexeddb/auto'
 import { beforeEach, describe, expect, it } from 'vitest'
+import { liveQuery } from 'dexie'
 import { db, clearAllTables } from '../db'
 import {
   createAccount,
   addAttachment,
   createTransaction,
   deleteTransaction,
+  deleteTransactions,
+  setClearedStatus,
   enterScheduled,
   getAttachments,
   ensureInitialized,
@@ -207,5 +210,44 @@ describe('deleteTransaction', () => {
     expect(row.deleted).toBe(true)
     expect(row.size).toBe(0)
     expect(row.data.size).toBe(0)
+  })
+})
+
+describe('bulk register actions', () => {
+  it('stamps updatedAt so bulk edits still sync', async () => {
+    const accountId = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 0 })
+    const a = await createTransaction({ accountId, date: today(), amount: -100 })
+    const b = await createTransaction({ accountId, date: today(), amount: -200 })
+    const before = (await db.transactions.get(a))!.updatedAt!
+
+    await new Promise((r) => setTimeout(r, 2))
+    await setClearedStatus([a, b], 'cleared')
+
+    for (const id of [a, b]) {
+      const t = (await db.transactions.get(id))!
+      expect(t.cleared).toBe('cleared')
+      expect(t.updatedAt! > before).toBe(true)
+    }
+  })
+
+  it('deletes a selection, transfer far sides included, in one commit', async () => {
+    const checking = await createAccount({ name: 'Checking', type: 'checking', startingBalance: 0 })
+    const savings = await createAccount({ name: 'Savings', type: 'savings', startingBalance: 0 })
+    const plain = await createTransaction({ accountId: checking, date: today(), amount: -100 })
+    const transfer = await createTransaction({ accountId: checking, date: today(), amount: -500, transferAccountId: savings })
+    const far = (await db.transactions.get(transfer))!.transferTransactionId!
+
+    const seen: number[] = []
+    const sub = liveQuery(() => db.transactions.count()).subscribe((n) => seen.push(n))
+    await new Promise((r) => setTimeout(r, 20))
+    const emissionsBefore = seen.length
+
+    await deleteTransactions([plain, transfer])
+    await new Promise((r) => setTimeout(r, 20))
+    sub.unsubscribe()
+
+    for (const id of [plain, transfer, far]) expect((await db.transactions.get(id))!.deleted).toBe(true)
+    // One commit means the UI recomputes once, not once per row.
+    expect(seen.length - emissionsBefore).toBe(1)
   })
 })

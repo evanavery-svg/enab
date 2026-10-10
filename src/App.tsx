@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { Toasts } from './components/Toasts'
 import { Sidebar } from './components/Sidebar'
@@ -9,13 +9,17 @@ import { isInstalled } from './lib/install'
 import { useData } from './hooks/useData'
 import { useUi } from './state/ui'
 import BudgetPage from './pages/BudgetPage'
-import AccountsPage from './pages/AccountsPage'
-import RegisterPage from './pages/RegisterPage'
-import ReportsPage from './pages/ReportsPage'
-import PlanPage from './pages/PlanPage'
-import SettingsPage from './pages/SettingsPage'
-import PayeesPage from './pages/PayeesPage'
-import ScheduledPage from './pages/ScheduledPage'
+
+// The Budget screen is where the app opens, so it ships in the main bundle.
+// Everything else loads on first visit — the service worker precaches every
+// chunk, so this costs nothing offline and shortens the launch on a phone.
+const AccountsPage = lazy(() => import('./pages/AccountsPage'))
+const RegisterPage = lazy(() => import('./pages/RegisterPage'))
+const ReportsPage = lazy(() => import('./pages/ReportsPage'))
+const PlanPage = lazy(() => import('./pages/PlanPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const PayeesPage = lazy(() => import('./pages/PayeesPage'))
+const ScheduledPage = lazy(() => import('./pages/ScheduledPage'))
 
 export default function App() {
   const { settings, ready } = useData()
@@ -121,17 +125,19 @@ export default function App() {
       {navOpen && <div className="nav-scrim" onClick={closeNav} />}
       <Sidebar />
       <div className="main">
-        <Routes>
-          <Route path="/" element={<BudgetPage />} />
-          <Route path="/accounts" element={<AccountsPage />} />
-          <Route path="/accounts/:accountId" element={<RegisterPage />} />
-          <Route path="/reports" element={<ReportsPage />} />
-          <Route path="/plan" element={<PlanPage />} />
-          <Route path="/payees" element={<PayeesPage />} />
-          <Route path="/scheduled" element={<ScheduledPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="*" element={<BudgetPage />} />
-        </Routes>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/" element={<BudgetPage />} />
+            <Route path="/accounts" element={<AccountsPage />} />
+            <Route path="/accounts/:accountId" element={<RegisterPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="/plan" element={<PlanPage />} />
+            <Route path="/payees" element={<PayeesPage />} />
+            <Route path="/scheduled" element={<ScheduledPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="*" element={<BudgetPage />} />
+          </Routes>
+        </Suspense>
       </div>
 
       {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../components/Icon'
 import { NavMenuButton } from '../components/NavMenuButton'
@@ -35,6 +35,9 @@ const FILTERS: { key: FilterKey; label: string }[] = [
   { key: 'inflow', label: 'Inflows' },
   { key: 'outflow', label: 'Outflows' },
 ]
+
+/** Rows rendered per page of register history. */
+const REGISTER_PAGE = 200
 
 export default function RegisterPage() {
   const { accountId } = useParams<{ accountId: string }>()
@@ -113,6 +116,25 @@ export default function RegisterPage() {
     [scheduled, accountId],
   )
 
+  // A busy account holds thousands of rows. Building them all made opening the
+  // register, and every keystroke in search, rebuild the whole history. Render
+  // the newest page and grow as the end scrolls into view; search and filters
+  // still run over everything.
+  const [limit, setLimit] = useState(REGISTER_PAGE)
+  useEffect(() => setLimit(REGISTER_PAGE), [accountId, filter, query])
+  const [sentinel, setSentinel] = useState<HTMLElement | null>(null)
+  useEffect(() => {
+    if (!sentinel || typeof IntersectionObserver === 'undefined') return
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) setLimit((n) => n + REGISTER_PAGE)
+      },
+      { rootMargin: '800px 0px' },
+    )
+    io.observe(sentinel)
+    return () => io.disconnect()
+  }, [sentinel])
+
   if (!account) {
     return (
       <>
@@ -166,7 +188,7 @@ export default function RegisterPage() {
 
   // Group the visible rows by date so the register reads like a statement.
   const groups: { date: string; items: { txn: Transaction; running: Cents }[] }[] = []
-  for (const row of visible) {
+  for (const row of visible.slice(0, limit)) {
     const last = groups[groups.length - 1]
     if (last && last.date === row.txn.date) last.items.push(row)
     else groups.push({ date: row.txn.date, items: [row] })
@@ -369,6 +391,13 @@ export default function RegisterPage() {
               ))}
             </div>
           ))
+        )}
+        {visible.length > limit && (
+          <div ref={setSentinel} style={{ padding: '14px 16px 24px', textAlign: 'center' }}>
+            <button className="btn btn-sm" onClick={() => setLimit((n) => n + REGISTER_PAGE)}>
+              Show older ({visible.length - limit} more)
+            </button>
+          </div>
         )}
       </div>
 

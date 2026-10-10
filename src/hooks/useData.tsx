@@ -1,8 +1,8 @@
-import { createContext, useContext, useMemo, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { computeBudget, computeAccountBalances, type AccountBalance, type BudgetResult } from '../budget/engine'
-import { addMonths, today } from '../lib/dates'
+import { addMonths, currentMonth, today } from '../lib/dates'
 import { DEFAULT_FORMAT, formatMoney, type MoneyFormat } from '../lib/money'
 import { defaultSettings } from '../db/seed'
 import { useUi } from '../state/ui'
@@ -46,6 +46,13 @@ export interface DataContextValue {
 const DataContext = createContext<DataContextValue | null>(null)
 
 const EMPTY: never[] = []
+/** One stable object, so the context doesn't churn while settings load. */
+const DEFAULT_SETTINGS = defaultSettings()
+
+/** Soft-deleted rows stay in the tables for sync; the UI never sees them. */
+function live<T extends { deleted?: boolean }>(rows: T[] | undefined): T[] {
+  return rows ? rows.filter((r) => !r.deleted) : EMPTY
+}
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const month = useUi((s) => s.month)
@@ -60,56 +67,91 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const entries = useLiveQuery(() => db.budgetEntries.toArray(), [])
   const monthNoteRows = useLiveQuery(() => db.monthNotes.toArray(), [])
 
-  const value = useMemo<DataContextValue>(() => {
-    const s = settings ?? defaultSettings()
-    const accountList = (accounts ?? EMPTY).filter((a) => !a.deleted)
-    const categoryList = (categories ?? EMPTY).filter((c) => !c.deleted)
-    const groupList = (groups ?? EMPTY).filter((g) => !g.deleted)
-    const payeeList = (payees ?? EMPTY).filter((p) => !p.deleted)
-    const txnList = (transactions ?? EMPTY).filter((t) => !t.deleted)
-    const scheduledList = (scheduled ?? EMPTY).filter((x) => !x.deleted)
-    const entryList = entries ?? EMPTY
+  // Each derived value is memoised on exactly the tables it reads. Dexie only
+  // re-emits a query whose table changed, so renaming a payee or switching the
+  // theme no longer reruns the budget engine over every transaction.
+  const s = settings ?? DEFAULT_SETTINGS
+  const accountList = useMemo(() => live(accounts), [accounts])
+  const categoryList = useMemo(() => live(categories), [categories])
+  const groupList = useMemo(() => live(groups), [groups])
+  const payeeList = useMemo(() => live(payees), [payees])
+  const txnList = useMemo(() => live(transactions), [transactions])
+  const scheduledList = useMemo(() => live(scheduled), [scheduled])
+  const entryList = entries ?? EMPTY
 
-    const format: MoneyFormat = {
-      currencySymbol: s.currencySymbol ?? DEFAULT_FORMAT.currencySymbol,
-      currencyCode: s.currencyCode ?? DEFAULT_FORMAT.currencyCode,
-      symbolPosition: s.symbolPosition ?? DEFAULT_FORMAT.symbolPosition,
-      decimalSeparator: s.decimalSeparator ?? DEFAULT_FORMAT.decimalSeparator,
-      groupSeparator: s.groupSeparator ?? DEFAULT_FORMAT.groupSeparator,
-      hideDecimals: s.hideDecimals ?? DEFAULT_FORMAT.hideDecimals,
-    }
-
-    const budget = computeBudget({
-      accounts: accountList,
-      categories: categoryList,
-      transactions: txnList,
-      entries: entryList,
-      // Always reach a month past the one being viewed so "next month" data
-      // (and its rollover) is available without a second pass.
-      throughMonth: addMonths(month, 1),
-    })
-
-    return {
-      ready: !!settings && !!accounts && !!categories && !!transactions,
-      settings: s,
-      accounts: accountList,
+  const accountMaps = useMemo(
+    () => ({
       openAccounts: accountList.filter((a) => !a.closed),
       accountById: new Map(accountList.map((a) => [a.id, a])),
+    }),
+    [accountList],
+  )
+  const categoryById = useMemo(() => new Map(categoryList.map((c) => [c.id, c])), [categoryList])
+  const payeeById = useMemo(() => new Map(payeeList.map((p) => [p.id, p])), [payeeList])
+  const monthNotes = useMemo(
+    () => new Map((monthNoteRows ?? EMPTY).map((n: MonthNote) => [n.month, n.note])),
+    [monthNoteRows],
+  )
+
+  // The engine must reach a month past the one being viewed so next month's
+  // rollover exists. It already covers through next month for any month up to
+  // now, so only looking into the future needs to widen it — paging back
+  // through history reuses the same result instead of recomputing it.
+  const nextMonth = addMonths(currentMonth(), 1)
+  const viewedNext = addMonths(month, 1)
+  const throughMonth = viewedNext > nextMonth ? viewedNext : nextMonth
+
+  const budget = useMemo(
+    () =>
+      computeBudget({
+        accounts: accountList,
+        categories: categoryList,
+        transactions: txnList,
+        entries: entryList,
+        throughMonth,
+      }),
+    [accountList, categoryList, txnList, entryList, throughMonth],
+  )
+  const balances = useMemo(() => computeAccountBalances(accountList, txnList, today()), [accountList, txnList])
+
+  const { currencySymbol, currencyCode, symbolPosition, decimalSeparator, groupSeparator, hideDecimals } = s
+  const format = useMemo<MoneyFormat>(
+    () => ({
+      currencySymbol: currencySymbol ?? DEFAULT_FORMAT.currencySymbol,
+      currencyCode: currencyCode ?? DEFAULT_FORMAT.currencyCode,
+      symbolPosition: symbolPosition ?? DEFAULT_FORMAT.symbolPosition,
+      decimalSeparator: decimalSeparator ?? DEFAULT_FORMAT.decimalSeparator,
+      groupSeparator: groupSeparator ?? DEFAULT_FORMAT.groupSeparator,
+      hideDecimals: hideDecimals ?? DEFAULT_FORMAT.hideDecimals,
+    }),
+    [currencySymbol, currencyCode, symbolPosition, decimalSeparator, groupSeparator, hideDecimals],
+  )
+  const money = useCallback<DataContextValue['money']>((cents, opts) => formatMoney(cents, format, opts), [format])
+
+  const ready = !!settings && !!accounts && !!categories && !!transactions
+  const value = useMemo<DataContextValue>(
+    () => ({
+      ready,
+      settings: s,
+      accounts: accountList,
+      ...accountMaps,
       groups: groupList,
       categories: categoryList,
-      categoryById: new Map(categoryList.map((c) => [c.id, c])),
+      categoryById,
       payees: payeeList,
-      payeeById: new Map(payeeList.map((p) => [p.id, p])),
+      payeeById,
       transactions: txnList,
       scheduled: scheduledList,
       entries: entryList,
-      monthNotes: new Map((monthNoteRows ?? EMPTY).map((n: MonthNote) => [n.month, n.note])),
+      monthNotes,
       budget,
-      balances: computeAccountBalances(accountList, txnList, today()),
+      balances,
       format,
-      money: (cents, opts) => formatMoney(cents, format, opts),
-    }
-  }, [settings, accounts, groups, categories, payees, transactions, scheduled, entries, monthNoteRows, month])
+      money,
+    }),
+    [ready, s, accountList, accountMaps, groupList, categoryList, categoryById, payeeList, payeeById, txnList,
+      scheduledList, entryList, monthNotes, budget, balances, format, money],
+  )
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
 }

@@ -595,26 +595,31 @@ export async function deleteTransaction(id: Id): Promise<void> {
   })
 }
 
+/**
+ * One database transaction for the whole selection. Each commit makes every
+ * live query re-emit and the budget recompute, so deleting rows one commit at
+ * a time recomputed the whole budget once per selected row.
+ */
 export async function deleteTransactions(ids: Id[]): Promise<void> {
-  for (const id of ids) await deleteTransaction(id)
+  await db.transaction('rw', db.transactions, db.attachments, async () => {
+    for (const id of ids) await deleteTransaction(id)
+  })
 }
 
+/** A single cursor pass over the selection; `modify` still fires the `updatedAt` hook. */
+const modifyTransactions = (ids: Id[], changes: Partial<Transaction>) =>
+  db.transactions.where(':id').anyOf(ids).modify(changes)
+
 export async function setClearedStatus(ids: Id[], cleared: ClearedStatus): Promise<void> {
-  await db.transaction('rw', db.transactions, async () => {
-    for (const id of ids) await db.transactions.update(id, { cleared })
-  })
+  await modifyTransactions(ids, { cleared })
 }
 
 export async function setApproved(ids: Id[], approved: boolean): Promise<void> {
-  await db.transaction('rw', db.transactions, async () => {
-    for (const id of ids) await db.transactions.update(id, { approved })
-  })
+  await modifyTransactions(ids, { approved })
 }
 
 export async function setFlag(ids: Id[], flag: FlagColor): Promise<void> {
-  await db.transaction('rw', db.transactions, async () => {
-    for (const id of ids) await db.transactions.update(id, { flag })
-  })
+  await modifyTransactions(ids, { flag })
 }
 
 export async function categorizeTransactions(ids: Id[], categoryId: Id | null): Promise<void> {

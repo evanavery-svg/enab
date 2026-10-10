@@ -1,7 +1,7 @@
 {
   "name": "enab",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "description": "ENAB - a zero-based envelope budgeting PWA",
   "scripts": {
@@ -15,7 +15,6 @@
     "icons": "node scripts/make-icons.mjs"
   },
   "dependencies": {
-    "date-fns": "^4.1.0",
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",
     "react": "^18.3.1",
