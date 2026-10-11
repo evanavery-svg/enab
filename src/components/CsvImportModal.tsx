@@ -5,6 +5,7 @@ import { Icon } from './Icon'
 import { useData } from '../hooks/useData'
 import { toast } from '../state/ui'
 import { importTransactions } from '../db/actions'
+import { guessCategory } from '../lib/categorize'
 import {
   analyzeCsv,
   decodeCsvBytes,
@@ -41,7 +42,16 @@ const sectionLabel = {
   color: 'var(--text-dim)',
 } as const
 
-export function CsvImportModal({ onClose, accountId: initialAccountId }: { onClose: () => void; accountId?: Id }) {
+export function CsvImportModal({
+  onClose,
+  accountId: initialAccountId,
+  onImported,
+}: {
+  onClose: () => void
+  accountId?: Id
+  /** Called after a successful import, before the modal closes. */
+  onImported?: (result: { imported: number; categorized: number }) => void
+}) {
   const { openAccounts, categories, transactions, balances, settings, money } = useData()
   const [accountId, setAccountId] = useState<Id>(initialAccountId ?? openAccounts[0]?.id ?? '')
   const [text, setText] = useState('')
@@ -119,20 +129,29 @@ export function CsvImportModal({ onClose, accountId: initialAccountId }: { onClo
 
       const result = await importTransactions(
         accountId,
-        fresh.map((r) => ({
-          date: r.date,
-          amount: r.amount,
-          payee: r.payee,
-          memo: r.memo,
-          // Only names that already exist match; importing never invents categories.
-          categoryId: r.category ? (byName.get(r.category.toLowerCase()) ?? null) : null,
-        })),
+        fresh.map((r) => {
+          // A guess from the merchant name fills in behind anything better:
+          // the file's own category, or what this payee got last time.
+          const guess = guessCategory(r.payee, r.amount)
+          const guessedCategoryId =
+            guess.kind === 'income' ? (inflow?.id ?? null) : guess.name ? (byName.get(guess.name.toLowerCase()) ?? null) : null
+          return {
+            date: r.date,
+            amount: r.amount,
+            payee: r.payee,
+            memo: r.memo,
+            // Only names that already exist match; importing never invents categories.
+            categoryId: r.category ? (byName.get(r.category.toLowerCase()) ?? null) : null,
+            guessedCategoryId,
+          }
+        }),
         { keepBalance: offerKeepBalance && keepBalance },
       )
       const parts = [`Imported ${result.imported} transaction${result.imported === 1 ? '' : 's'}`]
-      if (result.categorized) parts.push(`${result.categorized} already categorized`)
+      if (result.categorized) parts.push(`${result.categorized} sorted into categories`)
       if (dupeCount) parts.push(`${dupeCount} duplicate${dupeCount === 1 ? '' : 's'} skipped`)
       toast(parts.join(' · '))
+      onImported?.(result)
       onClose()
     } catch {
       toast('Import failed — nothing was changed', { tone: 'danger' })

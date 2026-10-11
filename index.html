@@ -49,7 +49,8 @@
       @media (prefers-color-scheme: dark) {
         body { background: #0b0b0d; color: #f2f2f4; }
         #boot .spin { border-top-color: #f2f2f4; }
-        #boot .mark { background: #f2f2f4 !important; color: #0b0b0d !important; }
+        #boot .mark .tile { fill: #f2f2f4; }
+        #boot .mark .bar { fill: #0b0b0d; }
       }
       #boot {
         /* dvh so the panel centres against the real viewport, not a parent
@@ -64,17 +65,8 @@
         text-align: center;
         box-sizing: border-box;
       }
-      #boot .mark {
-        display: grid;
-        place-items: center;
-        width: 54px;
-        height: 54px;
-        border-radius: 14px;
-        background: #16161a;
-        color: #ffffff;
-        font-size: 24px;
-        font-weight: 800;
-      }
+      #boot .mark .tile { fill: #16161a; }
+      #boot .mark .bar { fill: #ffffff; }
       #boot h1 { margin: 0; font-size: 19px; font-weight: 650; }
       #boot p { margin: 0; max-width: 460px; font-size: 14.5px; line-height: 1.5; opacity: 0.75; }
       #boot code {
@@ -100,7 +92,7 @@
   <body>
     <div id="root">
       <div id="boot" class="spinner-only">
-        <div class="mark">E</div>
+        <svg class="mark" viewBox="0 0 64 64" width="54" height="54" aria-hidden="true"><rect width="64" height="64" rx="15" class="tile"/><rect x="18" y="17" width="28" height="7" rx="3.5" class="bar"/><rect x="18" y="28.5" width="20" height="7" rx="3.5" class="bar"/><rect x="18" y="40" width="28" height="7" rx="3.5" class="bar"/></svg>
         <div class="spin"></div>
         <h1></h1>
         <p></p>

@@ -29,6 +29,10 @@ interface UiState {
   openTxnModal: (opts?: { transactionId?: Id; accountId?: Id; categoryId?: Id }) => void
   closeTxnModal: () => void
 
+  /** First-run setup. 'none' is the normal app; the welcome shows while there are no accounts. */
+  setupStep: 'none' | 'import' | 'review'
+  setSetupStep: (step: 'none' | 'import' | 'review') => void
+
   toasts: Toast[]
   toast: (message: string, opts?: { tone?: Toast['tone']; action?: Toast['action'] }) => void
   dismissToast: (id: string) => void
@@ -55,6 +59,9 @@ export const useUi = create<UiState>((set, get) => ({
   txnModal: null,
   openTxnModal: (opts) => set({ txnModal: { open: true, ...opts } }),
   closeTxnModal: () => set({ txnModal: null }),
+
+  setupStep: 'none',
+  setSetupStep: (setupStep) => set({ setupStep }),
 
   toasts: [],
   toast: (message, opts) => {

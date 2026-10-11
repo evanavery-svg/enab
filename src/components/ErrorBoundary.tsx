@@ -1,3 +1,4 @@
+import { Logo } from './Logo'
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 
 interface State {
@@ -26,7 +27,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     return (
       <div className="content content-pad">
         <div className="onboarding card">
-          <div className="mark">E</div>
+          <Logo size={54} className="onboarding-logo" />
           <h2>Something went wrong</h2>
           <p className="dim" style={{ marginTop: 8 }}>
             ENAB hit an error it couldn't recover from. Your budget is stored on this device and has not been

@@ -77,11 +77,12 @@ function inRoundedRect(px, py, x, y, w, h, r) {
   return dx * dx + dy * dy <= r * r
 }
 
-const inRect = (px, py, x, y, w, h) => px >= x && px <= x + w && py >= y && py <= y + h
+
 
 /**
- * The ENAB mark: a solid rounded tile with a geometric "E" cut into it —
- * three bars and a stem, which reads clearly even at 48px on a home screen.
+ * The ENAB mark: a solid rounded tile with three rounded bars — an E with
+ * its stem removed, which also reads as a short list of envelopes. Matches
+ * public/favicon.svg and src/components/Logo.tsx; change all three together.
  */
 function drawIcon(size, { bg, fg, cornerRadius, inset }) {
   const rgba = Buffer.alloc(size * size * 4)
@@ -91,13 +92,16 @@ function drawIcon(size, { bg, fg, cornerRadius, inset }) {
   const tile = { x: inset, y: inset, w: size - inset * 2, h: size - inset * 2 }
   const radius = cornerRadius * tile.w
 
-  // Glyph box, centred in the tile.
-  const gw = tile.w * 0.46
-  const gh = tile.h * 0.52
-  const gx = tile.x + (tile.w - gw) / 2
-  const gy = tile.y + (tile.h - gh) / 2
-  const bar = gh * 0.2
-  const stem = gw * 0.26
+  // Three pills, in the same proportions as the SVG (bars 28/20/28 wide and
+  // 7 tall on a 64 grid, 11.5 apart).
+  const u = tile.w / 64
+  const gx = tile.x + 18 * u
+  const bar = 7 * u
+  const bars = [
+    [gx, tile.y + 17 * u, 28 * u],
+    [gx, tile.y + 28.5 * u, 20 * u],
+    [gx, tile.y + 40 * u, 28 * u],
+  ]
 
   const SAMPLES = 3 // supersample for smooth edges
 
@@ -110,11 +114,7 @@ function drawIcon(size, { bg, fg, cornerRadius, inset }) {
           const px = x + (sx + 0.5) / SAMPLES
           const py = y + (sy + 0.5) / SAMPLES
           if (inRoundedRect(px, py, tile.x, tile.y, tile.w, tile.h, radius)) tileHits++
-          const inGlyph =
-            inRect(px, py, gx, gy, stem, gh) ||
-            inRect(px, py, gx, gy, gw, bar) ||
-            inRect(px, py, gx, gy + (gh - bar) / 2, gw * 0.8, bar) ||
-            inRect(px, py, gx, gy + gh - bar, gw, bar)
+          const inGlyph = bars.some(([bx, by, bw]) => inRoundedRect(px, py, bx, by, bw, bar, bar / 2))
           if (inGlyph) glyphHits++
         }
       }
@@ -134,18 +134,18 @@ function drawIcon(size, { bg, fg, cornerRadius, inset }) {
 
 /* ---------- outputs ---------- */
 
-const BG = '#0a0a0a'
+const BG = '#16161a'
 const FG = '#ffffff'
 
 mkdirSync(OUT_DIR, { recursive: true })
 
 const files = [
-  ['icon-192.png', drawIcon(192, { bg: BG, fg: FG, cornerRadius: 0.22, inset: 0 })],
-  ['icon-512.png', drawIcon(512, { bg: BG, fg: FG, cornerRadius: 0.22, inset: 0 })],
+  ['icon-192.png', drawIcon(192, { bg: BG, fg: FG, cornerRadius: 0.234, inset: 0 })],
+  ['icon-512.png', drawIcon(512, { bg: BG, fg: FG, cornerRadius: 0.234, inset: 0 })],
   // Maskable icons are cropped to a circle by some launchers, so the tile is
   // full-bleed and the glyph sits well inside the safe zone.
   ['icon-maskable-512.png', drawIcon(512, { bg: BG, fg: FG, cornerRadius: 0, inset: 0 })],
-  ['apple-touch-icon.png', drawIcon(180, { bg: BG, fg: FG, cornerRadius: 0.22, inset: 0 })],
+  ['apple-touch-icon.png', drawIcon(180, { bg: BG, fg: FG, cornerRadius: 0.234, inset: 0 })],
 ]
 
 for (const [name, buffer] of files) {

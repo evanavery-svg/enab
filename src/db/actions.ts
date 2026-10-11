@@ -654,6 +654,8 @@ export interface ImportedTransaction {
   memo: string
   /** A category named in the file, already matched to one of ours. */
   categoryId: Id | null
+  /** A guess from the payee's name. Used only when nothing better is known. */
+  guessedCategoryId?: Id | null
 }
 
 /**
@@ -691,7 +693,7 @@ export async function importTransactions(
         payeeByName.set(row.payee.toLowerCase(), payee)
       }
       const remembered = payee?.lastCategoryId && liveCategory.has(payee.lastCategoryId) ? payee.lastCategoryId : null
-      const categoryId = row.categoryId ?? remembered
+      const categoryId = row.categoryId ?? remembered ?? row.guessedCategoryId ?? null
       if (categoryId) categorized++
 
       await createTransaction({
@@ -722,6 +724,25 @@ export async function importTransactions(
     }
 
     return { imported: rows.length, categorized }
+  })
+}
+
+/**
+ * Put every plain transaction from a payee in one category, and remember it
+ * for next time. Splits and transfers carry their own categories and are
+ * left alone. Returns how many transactions changed.
+ */
+export async function setPayeeCategory(payeeId: Id, categoryId: Id | null): Promise<number> {
+  return db.transaction('rw', db.transactions, db.payees, async () => {
+    const rows = await db.transactions.where('payeeId').equals(payeeId).toArray()
+    let changed = 0
+    for (const t of rows) {
+      if (t.deleted || t.transferTransactionId || t.subtransactions?.length || t.categoryId === categoryId) continue
+      await db.transactions.update(t.id, { categoryId })
+      changed++
+    }
+    await db.payees.update(payeeId, { lastCategoryId: categoryId ?? undefined })
+    return changed
   })
 }
 

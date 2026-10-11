@@ -154,7 +154,11 @@ export const AmountInput = forwardRef<
       onFocus={(e) => {
         const field = e.currentTarget
         setEditing(true)
-        setText(value === 0 ? '' : formatMoney(value, fmt, { noSymbol: true }))
+        // Keep the text exactly as displayed. Swapping to a symbol-less form
+        // here changed the field's value under a keystroke that arrived in
+        // the same frame, merging the two into something unparseable — and
+        // the edit was silently lost. The parser accepts the symbol anyway.
+        setText(value === 0 ? '' : formatMoney(value, fmt))
         if (selectOnFocus) requestAnimationFrame(() => field.select())
         // The app shell is pinned to the viewport, so the browser will not
         // scroll the page to lift a field clear of the on-screen keyboard.

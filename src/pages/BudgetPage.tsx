@@ -8,8 +8,7 @@ import { ConfirmDialog } from '../components/Modal'
 import { MoveMoneyModal } from '../components/MoveMoneyModal'
 import { AmountInput } from '../components/Fields'
 import { Modal } from '../components/Modal'
-import { BringBudgetOver } from '../components/BringBudgetOver'
-import { AccountFormModal } from '../components/AccountForm'
+import { SetupPage } from './SetupPage'
 import { AppFooter } from '../components/AppFooter'
 import { useData } from '../hooks/useData'
 import { toast, useUi } from '../state/ui'
@@ -43,13 +42,13 @@ export default function BudgetPage() {
   const month = useUi((s) => s.month)
   const openDetail = useUi((s) => s.openCategoryDetail)
   const openTxnModal = useUi((s) => s.openTxnModal)
+  const setupStep = useUi((s) => s.setupStep)
   const navigate = useNavigate()
 
   const [showHidden, setShowHidden] = useState(false)
   const [addingGroup, setAddingGroup] = useState(false)
   const [addingCategoryTo, setAddingCategoryTo] = useState<Id | null>(null)
   const [moving, setMoving] = useState<{ from?: Id | null; to?: Id | null; amount?: Cents } | null>(null)
-  const [addingAccount, setAddingAccount] = useState(false)
 
   const states = budget.categoryStates.get(month)
   const summary = budget.summaries.get(month)
@@ -82,35 +81,7 @@ export default function BudgetPage() {
     toast(`${QUICK_BUDGET_LABELS[action]} applied to ${plan.length} categor${plan.length === 1 ? 'y' : 'ies'}`)
   }
 
-  if (accounts.length === 0) {
-    return (
-      <>
-        <header className="topbar">
-          {/* Settings, restore and the rest must be reachable before the
-              first account exists, not only by an undiscoverable edge swipe. */}
-          <NavMenuButton />
-          <h1>Budget</h1>
-        </header>
-        <div className="content">
-          <div className="onboarding card">
-            <div className="mark">E</div>
-            <h2>Welcome to ENAB</h2>
-            <p className="dim" style={{ marginTop: 8 }}>
-              Add the account your money actually sits in. Its balance becomes the money you have to
-              assign — then you give every dollar a job.
-            </p>
-            <button className="btn btn-primary btn-lg" style={{ marginTop: 12 }} onClick={() => setAddingAccount(true)}>
-              <Icon name="plus" size={17} /> Add your first account
-            </button>
-            <div className="onboarding-alt">
-              <BringBudgetOver />
-            </div>
-          </div>
-        </div>
-        {addingAccount && <AccountFormModal onClose={() => setAddingAccount(false)} />}
-      </>
-    )
-  }
+  if (accounts.length === 0 || setupStep !== 'none') return <SetupPage />
 
   return (
     <>

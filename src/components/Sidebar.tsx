@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import { Icon } from './Icon'
+import { Logo } from './Logo'
 import { AccountFormModal } from './AccountForm'
 import { AppFooter } from './AppFooter'
 import { useData } from '../hooks/useData'
@@ -31,7 +32,7 @@ export function Sidebar() {
     <aside className="sidebar">
       <div className="sidebar-head">
         <div className="sidebar-brand">
-          <span className="mark">E</span>
+          <Logo size={26} />
           <span>ENAB</span>
         </div>
         <div className="sidebar-budget-name truncate">{settings.budgetName}</div>

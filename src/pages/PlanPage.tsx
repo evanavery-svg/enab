@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Icon } from '../components/Icon'
 import { NavMenuButton } from '../components/NavMenuButton'
 import { AmountInput } from '../components/Fields'
@@ -26,6 +27,7 @@ export default function PlanPage() {
   const { accounts, categories, groups, payees, transactions, budget, money, settings, scheduled } = data
   const month = useUi((s) => s.month)
   const openDetail = useUi((s) => s.openCategoryDetail)
+  const navigate = useNavigate()
 
   const [importing, setImporting] = useState(false)
   const [overrides, setOverrides] = useState<Map<Id, Cents>>(new Map())
@@ -91,6 +93,8 @@ export default function PlanPage() {
       toast(
         `Assigned ${money(plannedTotal)} across ${included.length} categories${createTargets ? ' and created targets' : ''}`,
       )
+      // The assigned budget is the thing to look at next.
+      navigate('/')
     } finally {
       setApplying(false)
     }
