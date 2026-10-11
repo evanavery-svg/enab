@@ -1299,3 +1299,125 @@
 /* The service picker suggests as you type; Chrome's dropdown arrow just looks like a broken select. */
 .modal input[list='known-services']::-webkit-calendar-picker-indicator,
 .modal input[list='billed-through']::-webkit-calendar-picker-indicator { display: none !important; }
+
+/* ---------------- Grocery list ---------------- */
+
+.groc { display: flex; flex-direction: column; gap: 12px; padding-bottom: 32px; }
+
+.groc-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  border: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.groc-budget .row1 { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.groc-budget .label { font-size: 13px; font-weight: 600; color: var(--text-dim); }
+.groc-budget .left { font-size: 15px; font-weight: 700; color: var(--positive); }
+.groc-budget .left.neg { color: var(--danger); }
+.groc-budget .meter { height: 6px; border-radius: 99px; background: var(--surface-3); overflow: hidden; }
+.groc-budget .meter span { display: block; height: 100%; border-radius: inherit; background: var(--positive); transition: width 0.25s ease; }
+.groc-budget.over .meter span { background: var(--warning); }
+.groc-budget .row2 { font-size: 12.5px; color: var(--text-dim); }
+.groc-budget.over .row2 { color: var(--warning); font-weight: 600; }
+
+.groc-add { display: flex; gap: 8px; }
+.groc-add .input { flex: 1; min-width: 0; height: 46px; font-size: 16px; }
+.groc-add .btn { width: 46px; height: 46px; padding: 0; justify-content: center; flex: none; }
+.groc-add input[list]::-webkit-calendar-picker-indicator { display: none !important; }
+
+.groc-usual {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin: -2px -16px 0;
+  padding: 0 16px 2px;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+.groc-usual::-webkit-scrollbar { display: none; }
+.groc-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 11px 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--text-dim);
+  font-size: 13px;
+  font-weight: 600;
+  transition: transform 0.08s ease;
+}
+.groc-chip:active { transform: scale(0.96); }
+
+.groc-list { overflow: hidden; }
+.groc-row { display: flex; align-items: center; border-top: 1px solid var(--border); }
+.groc-row:first-child { border-top: none; }
+.groc-check {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: transparent;
+}
+.groc-check::before {
+  /* The circle; the icon sits on top of it once ticked. */
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid var(--border-strong);
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+}
+.groc-check { position: relative; }
+.groc-check svg { position: relative; transform: scale(0.4); opacity: 0; transition: transform 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.4), opacity 0.12s ease; }
+.groc-row.checked .groc-check { color: #fff; }
+.groc-row.checked .groc-check::before { background: var(--positive); border-color: var(--positive); }
+.groc-row.checked .groc-check svg { transform: none; opacity: 1; }
+.groc-check:active::before { transform: scale(0.88); }
+
+.groc-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 13px 14px 13px 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.groc-body .name { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 15.5px; font-weight: 550; }
+.groc-body .qty { flex: none; font-size: 13px; color: var(--text-faint); }
+.groc-body .price { margin-left: auto; flex: none; font-size: 14px; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.groc-row.checked .name { color: var(--text-faint); text-decoration: line-through; text-decoration-color: var(--border-strong); }
+.groc-row.checked .price { color: var(--text-faint); }
+@media (hover: hover) { .groc-body:hover .name { text-decoration: underline; text-decoration-color: var(--border-strong); } }
+
+.groc-done { display: flex; align-items: center; justify-content: center; gap: 6px; margin: 4px 0 0; color: var(--positive); font-weight: 600; font-size: 14px; }
+
+.groc-cart { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.groc-cart > header { display: flex; align-items: baseline; justify-content: space-between; padding: 0 2px; }
+.groc-cart h3 { font-size: 12.5px; font-weight: 650; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+.groc-cart h3 .n { margin-left: 4px; letter-spacing: 0; }
+.groc-cart .sum { font-size: 14px; font-weight: 650; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.groc-cart-actions { display: flex; gap: 8px; }
+.groc-cart-actions .btn { flex: 1; justify-content: center; }
+
+.groc-empty { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 30px 22px 26px; text-align: center; color: var(--text-faint); }
+.groc-empty h3 { margin-top: 8px; color: var(--text); font-size: 17px; }
+.groc-empty p { margin: 0; max-width: 320px; color: var(--text-dim); font-size: 14px; line-height: 1.5; }

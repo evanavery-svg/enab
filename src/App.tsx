@@ -22,6 +22,7 @@ const pages = {
   payees: () => import('./pages/PayeesPage'),
   scheduled: () => import('./pages/ScheduledPage'),
   subscriptions: () => import('./pages/SubscriptionsPage'),
+  groceries: () => import('./pages/GroceriesPage'),
 }
 const AccountsPage = lazy(pages.accounts)
 const RegisterPage = lazy(pages.register)
@@ -31,6 +32,7 @@ const SettingsPage = lazy(pages.settings)
 const PayeesPage = lazy(pages.payees)
 const ScheduledPage = lazy(pages.scheduled)
 const SubscriptionsPage = lazy(pages.subscriptions)
+const GroceriesPage = lazy(pages.groceries)
 
 /**
  * Load every other screen's code once the app has settled. Until a lazy page
@@ -171,6 +173,7 @@ export default function App() {
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/plan" element={<PlanPage />} />
             <Route path="/subscriptions" element={<SubscriptionsPage />} />
+            <Route path="/groceries" element={<GroceriesPage />} />
             <Route path="/payees" element={<PayeesPage />} />
             <Route path="/scheduled" element={<ScheduledPage />} />
             <Route path="/settings" element={<SettingsPage />} />

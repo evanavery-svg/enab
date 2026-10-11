@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { db, clearAllTables } from '../../db/db'
 import {
   addAttachment,
+  addGroceryItem,
+  removeGroceryItems,
   createAccount,
   deleteAttachment,
   getAttachments,
@@ -268,5 +270,24 @@ describe('subscriptions', () => {
     delete (old as { subscriptions?: unknown }).subscriptions
     await expect(mergeImport(old)).resolves.toBeTruthy()
     expect(await db.subscriptions.count()).toBe(1)
+  })
+})
+
+describe('grocery list', () => {
+  it('carries items across, and removing one carries across too', async () => {
+    const milk = await addGroceryItem({ name: 'Milk', price: 429 })
+    await addGroceryItem({ name: 'Eggs' })
+    const before = await exportSyncPacket()
+    await new Promise((r) => setTimeout(r, 2))
+    await removeGroceryItems([milk])
+    const after = await exportSyncPacket()
+
+    await clearAllTables()
+    await ensureInitialized()
+    await mergeImport(before)
+    expect((await db.groceryItems.toArray()).filter((i) => !i.deleted).map((i) => i.name).sort()).toEqual(['Eggs', 'Milk'])
+
+    await mergeImport(after)
+    expect((await db.groceryItems.get(milk))?.deleted).toBe(true)
   })
 })

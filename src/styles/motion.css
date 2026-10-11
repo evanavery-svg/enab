@@ -83,3 +83,7 @@
 }
 .icon-btn { transition: background 0.12s ease, transform 0.08s ease; }
 .next-chip { transition: transform 0.08s ease; }
+@media (hover: none) {
+  .groc-body:active,
+  .groc-budget:active { background: var(--surface-2); }
+}

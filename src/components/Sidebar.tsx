@@ -9,10 +9,11 @@ import { useUi } from '../state/ui'
 import type { Account, Cents } from '../types'
 
 export function Sidebar() {
-  const { settings, accounts, balances, money, budget } = useData()
+  const { settings, accounts, balances, money, budget, groceryItems } = useData()
   const month = useUi((s) => s.month)
   const openTxnModal = useUi((s) => s.openTxnModal)
   const closeNav = useUi((s) => s.closeNav)
+  const groceryCount = groceryItems.filter((i) => !i.deleted && !i.checked).length
   const [addingAccount, setAddingAccount] = useState(false)
 
   const readyToAssign = budget.summaries.get(month)?.readyToAssign ?? 0
@@ -70,7 +71,7 @@ export function Sidebar() {
           <span>Reports</span>
         </NavLink>
         <NavLink to="/subscriptions" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-          <Icon name="repeat" />
+          <Icon name="card" />
           <span>Subscriptions</span>
         </NavLink>
         <NavLink to="/accounts" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
@@ -111,6 +112,11 @@ export function Sidebar() {
       </div>
 
       <div className="sidebar-foot">
+        <NavLink to="/groceries" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+          <Icon name="cart" />
+          <span>Grocery list</span>
+          {groceryCount > 0 && <span className="nav-amount">{groceryCount}</span>}
+        </NavLink>
         <NavLink to="/scheduled" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
           <Icon name="repeat" />
           <span>Scheduled</span>

@@ -1,7 +1,17 @@
 import { create } from 'zustand'
 import { currentMonth } from '../lib/dates'
-import type { Id, MonthKey } from '../types'
+import type { Cents, Id, MonthKey } from '../types'
 import { uid } from '../lib/id'
+
+/** What the transaction sheet opens on. A new outflow can arrive pre-filled. */
+export interface TxnModalOptions {
+  transactionId?: Id
+  accountId?: Id
+  categoryId?: Id
+  /** Outflow amount for a new transaction, as a positive number. */
+  amount?: Cents
+  memo?: string
+}
 
 export interface Toast {
   id: string
@@ -25,8 +35,8 @@ interface UiState {
   openCategoryDetail: (id: Id | null) => void
 
   /** Transaction modal: `'new'` opens a blank one. */
-  txnModal: { open: boolean; transactionId?: Id; accountId?: Id; categoryId?: Id } | null
-  openTxnModal: (opts?: { transactionId?: Id; accountId?: Id; categoryId?: Id }) => void
+  txnModal: ({ open: boolean } & TxnModalOptions) | null
+  openTxnModal: (opts?: TxnModalOptions) => void
   closeTxnModal: () => void
 
   /** First-run setup. 'none' is the normal app; the welcome shows while there are no accounts. */

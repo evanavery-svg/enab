@@ -56,8 +56,8 @@ export function TransactionModal() {
     existing?.categoryId ?? modal?.categoryId ?? null,
   )
   const [isInflow, setIsInflow] = useState((existing?.amount ?? -1) > 0)
-  const [magnitude, setMagnitude] = useState<Cents>(Math.abs(existing?.amount ?? 0))
-  const [memo, setMemo] = useState(existing?.memo ?? '')
+  const [magnitude, setMagnitude] = useState<Cents>(Math.abs(existing?.amount ?? modal?.amount ?? 0))
+  const [memo, setMemo] = useState(existing?.memo ?? modal?.memo ?? '')
   const [cleared, setCleared] = useState(existing ? existing.cleared !== 'uncleared' : false)
   const [flag, setFlag] = useState<FlagColor>(existing?.flag ?? null)
   const [legs, setLegs] = useState<Leg[]>(existing?.subtransactions ?? [])

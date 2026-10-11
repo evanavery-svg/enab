@@ -2,6 +2,7 @@ import { db } from './db'
 import { CREDIT_GROUP_ID, INFLOW_CATEGORY_ID, buildSeed, defaultSettings } from './seed'
 import { uid } from '../lib/id'
 import { addDays, compareIso, monthOf, today } from '../lib/dates'
+import { itemKey } from '../lib/grocery'
 import { nextOccurrence } from '../budget/recurrence'
 import type {
   Account,
@@ -14,8 +15,9 @@ import type {
   FlagColor,
   Frequency,
   Goal,
-  Id,
+  GroceryItem,
   ISODate,
+  Id,
   MonthKey,
   ScheduledTransaction,
   Settings,
@@ -984,4 +986,69 @@ export async function setSubscriptionStatus(id: Id, status: Subscription['status
 /** Soft delete, so the removal reaches other devices on the next sync. */
 export async function deleteSubscription(id: Id): Promise<void> {
   await db.subscriptions.update(id, { deleted: true })
+}
+
+/* ------------------------------------------------------------------ */
+/* Grocery list                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Put something on the list. A name bought before revives that record, so
+ * its usual quantity and price come back with it and it ranks among the
+ * usual items. Already on the list: nothing changes.
+ */
+export async function addGroceryItem(input: { name: string; quantity?: string; price?: Cents | null }): Promise<Id> {
+  const name = input.name.trim()
+  const key = itemKey(name)
+  const now = new Date().toISOString()
+  return db.transaction('rw', db.groceryItems, async () => {
+    const existing = (await db.groceryItems.toArray()).find((i) => itemKey(i.name) === key)
+    if (existing && !existing.deleted) {
+      if (existing.checked) await db.groceryItems.update(existing.id, { checked: false })
+      return existing.id
+    }
+    if (existing) {
+      await db.groceryItems.update(existing.id, {
+        name,
+        quantity: input.quantity || existing.quantity,
+        price: input.price ?? existing.price,
+        checked: false,
+        deleted: false,
+        timesAdded: existing.timesAdded + 1,
+        addedAt: now,
+      })
+      return existing.id
+    }
+    const id = uid('groc')
+    await db.groceryItems.put({
+      id,
+      name,
+      quantity: input.quantity ?? '',
+      price: input.price ?? null,
+      checked: false,
+      timesAdded: 1,
+      addedAt: now,
+      createdAt: now,
+      deleted: false,
+    })
+    return id
+  })
+}
+
+export async function updateGroceryItem(id: Id, changes: Partial<Pick<GroceryItem, 'name' | 'quantity' | 'price' | 'checked'>>): Promise<void> {
+  await db.groceryItems.update(id, changes)
+}
+
+/** Off the list (kept as history for suggestions, and so removal syncs). */
+export async function removeGroceryItems(ids: Id[]): Promise<void> {
+  await db.transaction('rw', db.groceryItems, async () => {
+    for (const id of ids) await db.groceryItems.update(id, { deleted: true, checked: false })
+  })
+}
+
+/** Undo for a removal: back on the list exactly as it was. */
+export async function restoreGroceryItems(items: GroceryItem[]): Promise<void> {
+  await db.transaction('rw', db.groceryItems, async () => {
+    for (const i of items) await db.groceryItems.update(i.id, { deleted: false, checked: i.checked })
+  })
 }

@@ -5,6 +5,7 @@ import type {
   BudgetEntry,
   Category,
   CategoryGroup,
+  GroceryItem,
   MonthNote,
   Payee,
   ScheduledTransaction,
@@ -25,6 +26,7 @@ export class EnabDatabase extends Dexie {
   settings!: Table<Settings, string>
   attachments!: Table<Attachment, string>
   subscriptions!: Table<Subscription, string>
+  groceryItems!: Table<GroceryItem, string>
 
   constructor(name = 'enab') {
     super(name)
@@ -45,6 +47,9 @@ export class EnabDatabase extends Dexie {
     })
     this.version(3).stores({
       subscriptions: 'id, status, deleted',
+    })
+    this.version(4).stores({
+      groceryItems: 'id, deleted',
     })
 
     // Every synced record carries an `updatedAt`. Stamping it here rather than
@@ -75,6 +80,7 @@ const SYNCED_TABLES = [
   'budgetEntries',
   'monthNotes',
   'subscriptions',
+  'groceryItems',
 ] as const
 
 let stampTimestamps = true
@@ -112,6 +118,7 @@ export async function clearAllTables(database: EnabDatabase = db) {
     database.settings,
     database.attachments,
     database.subscriptions,
+    database.groceryItems,
   ]
   await database.transaction('rw', tables, async () => {
     await Promise.all(tables.map((t) => t.clear()))

@@ -395,3 +395,30 @@ export interface MonthSummary {
   /** Sum of positive available balances (money sitting in envelopes). */
   totalAvailable: Cents
 }
+
+/* ------------------------------------------------------------------ */
+/* Grocery list                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * One line on the shopping list. Removing an item only soft-deletes it, and
+ * adding the same name again revives that record — so the table doubles as
+ * the history behind "usual items" suggestions, one record per thing bought.
+ */
+export interface GroceryItem {
+  id: Id
+  name: string
+  /** Free text: "2", "1 lb", "a dozen". Empty when it doesn't matter. */
+  quantity: string
+  /** Estimated cost for this line, if known. */
+  price: Cents | null
+  /** In the cart. */
+  checked: boolean
+  /** How many times it has gone on the list; ranks the usual items. */
+  timesAdded: number
+  /** Last time it went on the list, for ordering (ISO timestamp). */
+  addedAt: string
+  createdAt: string
+  updatedAt?: string
+  deleted: boolean
+}

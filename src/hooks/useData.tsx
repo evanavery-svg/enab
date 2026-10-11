@@ -12,6 +12,7 @@ import type {
   Category,
   CategoryGroup,
   Cents,
+  GroceryItem,
   Id,
   MonthNote,
   Payee,
@@ -40,6 +41,8 @@ export interface DataContextValue {
   monthNotes: Map<string, string>
   /** Tracked subscriptions, active and cancelled, without deleted ones. */
   subscriptions: Subscription[]
+  /** Every grocery record, including ones off the list (they're the history). */
+  groceryItems: GroceryItem[]
   budget: BudgetResult
   balances: Map<Id, AccountBalance>
   format: MoneyFormat
@@ -70,6 +73,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const entries = useLiveQuery(() => db.budgetEntries.toArray(), [])
   const monthNoteRows = useLiveQuery(() => db.monthNotes.toArray(), [])
   const subscriptionRows = useLiveQuery(() => db.subscriptions.toArray(), [])
+  const groceryRows = useLiveQuery(() => db.groceryItems.toArray(), [])
 
   // Each derived value is memoised on exactly the tables it reads. Dexie only
   // re-emits a query whose table changed, so renaming a payee or switching the
@@ -150,13 +154,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       entries: entryList,
       monthNotes,
       subscriptions: subscriptionList,
+      groceryItems: groceryRows ?? EMPTY,
       budget,
       balances,
       format,
       money,
     }),
     [ready, s, accountList, accountMaps, groupList, categoryList, categoryById, payeeList, payeeById, txnList,
-      scheduledList, entryList, monthNotes, subscriptionList, budget, balances, format, money],
+      scheduledList, entryList, monthNotes, subscriptionList, groceryRows, budget, balances, format, money],
   )
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
