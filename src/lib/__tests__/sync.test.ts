@@ -11,6 +11,8 @@ import {
   ensureInitialized,
   setAssigned,
   setMonthNote,
+  saveSubscription,
+  setSubscriptionStatus,
   updateTransaction,
 } from '../../db/actions'
 import { INFLOW_CATEGORY_ID } from '../../db/seed'
@@ -233,5 +235,38 @@ describe('syncing onto a brand-new device', () => {
     await mergeImport(other)
 
     expect(await db.categories.count()).toBe(before + 1)
+  })
+})
+
+describe('subscriptions', () => {
+  const base = {
+    amount: 2299, amountIsEstimate: false, cadence: 'monthly' as const, billingDay: 30, billingMonth: null,
+    billedThrough: 'Apple', status: 'active' as const,
+  }
+
+  it('carry across, and so does cancelling one', async () => {
+    const id = await saveSubscription({ ...base, name: 'Claude' })
+    const before = await exportSyncPacket()
+    await new Promise((r) => setTimeout(r, 2))
+    await setSubscriptionStatus(id, 'cancelled', '2026-10-01')
+    const after = await exportSyncPacket()
+
+    await clearAllTables()
+    await ensureInitialized()
+    await mergeImport(before)
+    expect((await db.subscriptions.get(id))?.status).toBe('active')
+
+    await mergeImport(after)
+    const s = await db.subscriptions.get(id)
+    expect(s?.status).toBe('cancelled')
+    expect(s?.cancelledOn).toBe('2026-10-01')
+  })
+
+  it('merge from a packet made before subscriptions existed', async () => {
+    await saveSubscription({ ...base, name: 'Claude' })
+    const old = await exportSyncPacket()
+    delete (old as { subscriptions?: unknown }).subscriptions
+    await expect(mergeImport(old)).resolves.toBeTruthy()
+    expect(await db.subscriptions.count()).toBe(1)
   })
 })

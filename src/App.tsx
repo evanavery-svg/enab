@@ -20,6 +20,7 @@ const PlanPage = lazy(() => import('./pages/PlanPage'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage'))
 const PayeesPage = lazy(() => import('./pages/PayeesPage'))
 const ScheduledPage = lazy(() => import('./pages/ScheduledPage'))
+const SubscriptionsPage = lazy(() => import('./pages/SubscriptionsPage'))
 
 export default function App() {
   const { settings, ready } = useData()
@@ -132,6 +133,7 @@ export default function App() {
             <Route path="/accounts/:accountId" element={<RegisterPage />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/plan" element={<PlanPage />} />
+            <Route path="/subscriptions" element={<SubscriptionsPage />} />
             <Route path="/payees" element={<PayeesPage />} />
             <Route path="/scheduled" element={<ScheduledPage />} />
             <Route path="/settings" element={<SettingsPage />} />

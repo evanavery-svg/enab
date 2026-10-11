@@ -20,6 +20,7 @@ import type {
   ScheduledTransaction,
   Settings,
   SubTransaction,
+  Subscription,
   Transaction,
 } from '../types'
 
@@ -950,4 +951,37 @@ export async function deleteAttachment(id: Id): Promise<void> {
 export async function getAttachments(transactionId: Id): Promise<Attachment[]> {
   const rows = await db.attachments.where('transactionId').equals(transactionId).toArray()
   return rows.filter((a) => !a.deleted)
+}
+
+/* ------------------------------------------------------------------ */
+/* Subscriptions                                                       */
+/* ------------------------------------------------------------------ */
+
+export type SubscriptionInput = Omit<Subscription, 'id' | 'createdAt' | 'deleted' | 'updatedAt'>
+
+export async function saveSubscription(input: SubscriptionInput, id?: Id): Promise<Id> {
+  const existing = id ? await db.subscriptions.get(id) : undefined
+  const subId = existing?.id ?? uid('sub')
+  await db.subscriptions.put({
+    ...input,
+    name: input.name.trim(),
+    billedThrough: input.billedThrough.trim(),
+    id: subId,
+    createdAt: existing?.createdAt ?? new Date().toISOString(),
+    deleted: false,
+  })
+  return subId
+}
+
+/** Cancel (dated today unless told otherwise) or bring one back. */
+export async function setSubscriptionStatus(id: Id, status: Subscription['status'], cancelledOn?: ISODate): Promise<void> {
+  await db.subscriptions.update(id, {
+    status,
+    cancelledOn: status === 'cancelled' ? (cancelledOn ?? today()) : undefined,
+  })
+}
+
+/** Soft delete, so the removal reaches other devices on the next sync. */
+export async function deleteSubscription(id: Id): Promise<void> {
+  await db.subscriptions.update(id, { deleted: true })
 }

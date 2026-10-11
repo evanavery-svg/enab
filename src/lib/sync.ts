@@ -8,6 +8,7 @@ import type {
   MonthNote,
   Payee,
   ScheduledTransaction,
+  Subscription,
   Transaction,
 } from '../types'
 
@@ -30,6 +31,8 @@ export interface SyncPacket {
   budgetEntries: BudgetEntry[]
   monthNotes: MonthNote[]
   attachments: SerializedAttachment[]
+  /** Absent from packets made before subscriptions existed. */
+  subscriptions?: Subscription[]
 }
 
 /**
@@ -65,7 +68,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
 }
 
 export async function exportSyncPacket(): Promise<SyncPacket> {
-  const [accounts, categoryGroups, categories, payees, transactions, scheduled, budgetEntries, monthNotes, rawAttachments] =
+  const [accounts, categoryGroups, categories, payees, transactions, scheduled, budgetEntries, monthNotes, rawAttachments, subscriptions] =
     await Promise.all([
       db.accounts.toArray(),
       db.categoryGroups.toArray(),
@@ -76,6 +79,7 @@ export async function exportSyncPacket(): Promise<SyncPacket> {
       db.budgetEntries.toArray(),
       db.monthNotes.toArray(),
       db.attachments.toArray(),
+      db.subscriptions.toArray(),
     ])
 
   const attachments = await Promise.all(
@@ -105,6 +109,7 @@ export async function exportSyncPacket(): Promise<SyncPacket> {
     budgetEntries,
     monthNotes,
     attachments,
+    subscriptions,
   }
 }
 
@@ -218,6 +223,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
     localEntries,
     localMonthNotes,
     localAttachments,
+    localSubscriptions,
   ] = await Promise.all([
     db.accounts.toArray(),
     db.categoryGroups.toArray(),
@@ -228,6 +234,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
     db.budgetEntries.toArray(),
     db.monthNotes.toArray(),
     db.attachments.toArray(),
+    db.subscriptions.toArray(),
   ])
 
   // Starter categories are generated with fresh ids on every install, so a
@@ -251,6 +258,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
   const scheds = mergeRecords(localScheduled, packet.scheduled ?? [], byId)
   const entries = mergeRecords(localEntries, packet.budgetEntries ?? [], byId)
   const notes = mergeRecords(localMonthNotes, packet.monthNotes ?? [], (n) => n.month)
+  const subs = mergeRecords(localSubscriptions, packet.subscriptions ?? [], byId)
 
   // Attachment blobs never change once written, so an id we already hold needs
   // no decoding — that keeps a repeat sync from re-inflating every receipt.
@@ -266,7 +274,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
   await preservingTimestamps(async () => {
     await db.transaction(
       'rw',
-      [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes, db.attachments],
+      [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes, db.attachments, db.subscriptions],
       async () => {
         if (starterGroups.length) await db.categoryGroups.bulkDelete(starterGroups.map((g) => g.id))
         if (starterCategories.length) await db.categories.bulkDelete(starterCategories.map((c) => c.id))
@@ -278,6 +286,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
         if (scheds.changed.length) await db.scheduled.bulkPut(scheds.changed)
         if (entries.changed.length) await db.budgetEntries.bulkPut(entries.changed)
         if (notes.changed.length) await db.monthNotes.bulkPut(notes.changed)
+        if (subs.changed.length) await db.subscriptions.bulkPut(subs.changed)
         if (newAttachments.length) {
           await db.attachments.bulkPut(
             newAttachments.map((a) => ({
@@ -309,7 +318,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
     )
   })
 
-  const parts = [accts, groups, cats, pays, txns, scheds, entries, notes]
+  const parts = [accts, groups, cats, pays, txns, scheds, entries, notes, subs]
   return {
     totalAdded: parts.reduce((s, r) => s + r.added, 0) + newAttachments.length,
     totalUpdated: parts.reduce((s, r) => s + r.updated, 0),

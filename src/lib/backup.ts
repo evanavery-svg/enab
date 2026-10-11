@@ -11,6 +11,7 @@ import type {
   Payee,
   ScheduledTransaction,
   Settings,
+  Subscription,
   Transaction,
 } from '../types'
 
@@ -30,10 +31,12 @@ export interface Backup {
   monthNotes: MonthNote[]
   settings: Settings[]
   attachments?: SerializedAttachment[]
+  /** Absent from backups made before subscriptions existed. */
+  subscriptions?: Subscription[]
 }
 
 export async function exportBackup(): Promise<Backup> {
-  const [accounts, categoryGroups, categories, payees, transactions, scheduled, budgetEntries, monthNotes, settings, rawAttachments] =
+  const [accounts, categoryGroups, categories, payees, transactions, scheduled, budgetEntries, monthNotes, settings, rawAttachments, subscriptions] =
     await Promise.all([
       db.accounts.toArray(),
       db.categoryGroups.toArray(),
@@ -45,6 +48,7 @@ export async function exportBackup(): Promise<Backup> {
       db.monthNotes.toArray(),
       db.settings.toArray(),
       db.attachments.toArray(),
+      db.subscriptions.toArray(),
     ])
 
   // Deleted attachments are carried as bare markers so a restore doesn't
@@ -78,6 +82,7 @@ export async function exportBackup(): Promise<Backup> {
     // parked in cloud storage; the sync passphrase and PIN must not ride along.
     settings: settings.map(({ syncPassphrase: _p, pinHash: _h, ...rest }) => rest),
     attachments,
+    subscriptions,
   }
 }
 
@@ -102,7 +107,7 @@ export async function importBackup(raw: string): Promise<{ transactions: number;
   await preservingTimestamps(async () => {
     await db.transaction(
       'rw',
-      [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes, db.settings, db.attachments],
+      [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes, db.settings, db.attachments, db.subscriptions],
       async () => {
         await db.accounts.bulkPut(parsed.accounts ?? [])
         await db.categoryGroups.bulkPut(parsed.categoryGroups ?? [])
@@ -113,6 +118,7 @@ export async function importBackup(raw: string): Promise<{ transactions: number;
         await db.budgetEntries.bulkPut(parsed.budgetEntries ?? [])
         await db.monthNotes.bulkPut(parsed.monthNotes ?? [])
         await db.settings.bulkPut(parsed.settings ?? [])
+        await db.subscriptions.bulkPut(parsed.subscriptions ?? [])
         if (parsed.attachments?.length) {
           const hydrated: Attachment[] = parsed.attachments.map((a) => ({
             id: a.id,

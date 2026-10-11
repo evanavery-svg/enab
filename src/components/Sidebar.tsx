@@ -62,6 +62,10 @@ export function Sidebar() {
           <Icon name="chart" />
           <span>Reports</span>
         </NavLink>
+        <NavLink to="/subscriptions" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+          <Icon name="repeat" />
+          <span>Subscriptions</span>
+        </NavLink>
         <NavLink to="/accounts" end className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
           <Icon name="wallet" />
           <span>All Accounts</span>

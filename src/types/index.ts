@@ -294,6 +294,45 @@ export interface Settings {
 }
 
 /* ------------------------------------------------------------------ */
+/* Subscriptions                                                       */
+/* ------------------------------------------------------------------ */
+
+export type SubscriptionCadence = 'monthly' | 'yearly' | 'weekly'
+
+/**
+ * A service you pay for on a schedule — or used to. Tracked by hand rather
+ * than derived from transactions, because the useful facts (what it's billed
+ * through, roughly when, what you'd save by cancelling) often aren't in the
+ * bank's data at all: a subscription paid through Apple shows up as "APPLE".
+ */
+export interface Subscription {
+  id: Id
+  name: string
+  /** Price per billing, in cents. Null when you don't know it yet. */
+  amount: Cents | null
+  /** The price is a rough figure ("~$20"). */
+  amountIsEstimate: boolean
+  cadence: SubscriptionCadence
+  /**
+   * Monthly: day of the month it bills, 1–31 (31 means the last day).
+   * Yearly: day of `billingMonth`. Null when unknown.
+   */
+  billingDay: number | null
+  /** Yearly only: 1–12. */
+  billingMonth: number | null
+  /** Who charges you: Apple, Google, PayPal, the service itself… */
+  billedThrough: string
+  status: 'active' | 'cancelled'
+  /** When it was cancelled, if known — what "saved so far" counts from. */
+  cancelledOn?: ISODate
+  /** The payee it appears as in transactions, when linked. */
+  payeeId?: Id | null
+  createdAt: string
+  updatedAt?: string
+  deleted: boolean
+}
+
+/* ------------------------------------------------------------------ */
 /* Attachments                                                         */
 /* ------------------------------------------------------------------ */
 

@@ -17,6 +17,7 @@ import type {
   Payee,
   ScheduledTransaction,
   Settings,
+  Subscription,
   Transaction,
 } from '../types'
 
@@ -37,6 +38,8 @@ export interface DataContextValue {
   scheduled: ScheduledTransaction[]
   entries: BudgetEntry[]
   monthNotes: Map<string, string>
+  /** Tracked subscriptions, active and cancelled, without deleted ones. */
+  subscriptions: Subscription[]
   budget: BudgetResult
   balances: Map<Id, AccountBalance>
   format: MoneyFormat
@@ -66,6 +69,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const scheduled = useLiveQuery(() => db.scheduled.toArray(), [])
   const entries = useLiveQuery(() => db.budgetEntries.toArray(), [])
   const monthNoteRows = useLiveQuery(() => db.monthNotes.toArray(), [])
+  const subscriptionRows = useLiveQuery(() => db.subscriptions.toArray(), [])
 
   // Each derived value is memoised on exactly the tables it reads. Dexie only
   // re-emits a query whose table changed, so renaming a payee or switching the
@@ -77,6 +81,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const payeeList = useMemo(() => live(payees), [payees])
   const txnList = useMemo(() => live(transactions), [transactions])
   const scheduledList = useMemo(() => live(scheduled), [scheduled])
+  const subscriptionList = useMemo(() => live(subscriptionRows), [subscriptionRows])
   const entryList = entries ?? EMPTY
 
   const accountMaps = useMemo(
@@ -144,13 +149,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
       scheduled: scheduledList,
       entries: entryList,
       monthNotes,
+      subscriptions: subscriptionList,
       budget,
       balances,
       format,
       money,
     }),
     [ready, s, accountList, accountMaps, groupList, categoryList, categoryById, payeeList, payeeById, txnList,
-      scheduledList, entryList, monthNotes, budget, balances, format, money],
+      scheduledList, entryList, monthNotes, subscriptionList, budget, balances, format, money],
   )
 
   return <DataContext.Provider value={value}>{children}</DataContext.Provider>
