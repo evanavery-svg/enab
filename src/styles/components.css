@@ -15,7 +15,7 @@
   white-space: nowrap;
   transition: background 0.12s ease, border-color 0.12s ease, transform 0.06s ease;
 }
-.btn:hover:not(:disabled) { background: var(--surface-2); }
+@media (hover: hover) { .btn:hover:not(:disabled) { background: var(--surface-2); } }
 .btn:active:not(:disabled) { transform: translateY(1px); }
 
 .btn-primary {
@@ -23,13 +23,13 @@
   border-color: var(--accent);
   color: var(--accent-text);
 }
-.btn-primary:hover:not(:disabled) { filter: brightness(1.15); background: var(--accent); }
+@media (hover: hover) { .btn-primary:hover:not(:disabled) { filter: brightness(1.15); background: var(--accent); } }
 
 .btn-danger { color: var(--danger); border-color: var(--danger); background: transparent; }
-.btn-danger:hover:not(:disabled) { background: var(--danger-soft); }
+@media (hover: hover) { .btn-danger:hover:not(:disabled) { background: var(--danger-soft); } }
 
 .btn-ghost { border-color: transparent; background: transparent; }
-.btn-ghost:hover:not(:disabled) { background: var(--surface-2); }
+@media (hover: hover) { .btn-ghost:hover:not(:disabled) { background: var(--surface-2); } }
 
 .btn-sm { padding: 5px 10px; font-size: 13px; }
 .btn-lg { padding: 11px 18px; font-size: 15px; }
@@ -47,7 +47,7 @@
   background: transparent;
   color: var(--text-dim);
 }
-.icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+@media (hover: hover) { .icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text); } }
 
 /* ---------------- Form controls ---------------- */
 
@@ -271,8 +271,10 @@
   text-align: left;
   text-decoration: none;
 }
-.menu button:hover:not(:disabled),
-.menu a:hover { background: var(--surface-2); }
+@media (hover: hover) {
+  .menu button:hover:not(:disabled),
+  .menu a:hover { background: var(--surface-2); }
+}
 .menu .menu-label {
   padding: 8px 10px 4px;
   font-size: 11px;

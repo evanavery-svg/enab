@@ -1,0 +1,85 @@
+/* ------------------------------------------------------------------ *
+ * Motion and scroll feel. Loaded last so it can refine anything above.
+ * Everything here animates opacity or transform only — the two
+ * properties a phone can animate on the GPU without re-laying out the page.
+ * ------------------------------------------------------------------ */
+
+/* Scrolling inside a sheet, drawer or menu stays there: reaching the end
+   no longer drags the page behind it along. */
+.modal-body,
+.drawer-body,
+.sidebar-scroll,
+.menu,
+.next-up-row,
+.chart-scroll {
+  overscroll-behavior: contain;
+}
+
+/* A new screen settles in rather than snapping. */
+.main > .content {
+  animation: page-in 0.18s ease-out;
+}
+@keyframes page-in {
+  from { opacity: 0; }
+}
+
+/* Sheets and drawers leave the way they came in. */
+@keyframes fade-out { to { opacity: 0; } }
+@keyframes pop-out { to { opacity: 0; transform: translateY(6px) scale(0.98); } }
+@keyframes slide-down { to { transform: translateY(100%); } }
+@keyframes slide-out { to { transform: translateX(100%); } }
+
+.scrim.closing,
+.drawer-scrim.closing {
+  animation: fade-out 0.17s ease-in forwards;
+  pointer-events: none;
+}
+.scrim.closing .modal { animation: pop-out 0.17s ease-in forwards; }
+.drawer.closing { animation: slide-out 0.17s ease-in forwards; pointer-events: none; }
+@media (max-width: 640px) {
+  .scrim.closing .modal,
+  .drawer.closing { animation: slide-down 0.17s cubic-bezier(0.4, 0, 1, 1) forwards; }
+}
+
+/*
+ * The frosted header and Ready to Assign bar are redrawn on every frame of a
+ * scroll, so their filter is the single most expensive thing on screen. A
+ * plain blur over a slightly more opaque tint looks the same and costs far
+ * less than blur stacked with saturate.
+ */
+@media (max-width: 899px) {
+  .topbar,
+  .rta-wrap {
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+}
+
+/*
+ * Touch feedback. Phones get a quick press state instead of hover (which
+ * sticks after a tap). It appears on touch and clears the moment the finger
+ * lifts or starts scrolling.
+ */
+@media (hover: none) {
+  .cat-row:active,
+  .txn-row:active,
+  .acct-list a:active,
+  .sub-row:active,
+  .cover-list button:active,
+  .nav-link:active,
+  .menu button:active:not(:disabled),
+  .menu a:active {
+    background: var(--surface-2);
+  }
+  .btn:active:not(:disabled),
+  .icon-btn:active:not(:disabled),
+  .next-chip:active {
+    transform: scale(0.97);
+  }
+  .icon-btn:active:not(:disabled) { background: var(--surface-2); }
+  .rta:active,
+  .avail-pill:active { filter: brightness(0.95); }
+}
+.icon-btn { transition: background 0.12s ease, transform 0.08s ease; }
+.next-chip { transition: transform 0.08s ease; }

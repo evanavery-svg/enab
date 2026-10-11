@@ -119,10 +119,16 @@ export const AmountInput = forwardRef<
     /** Show blank instead of a formatted zero. */
     blankZero?: boolean
     disabled?: boolean
+    /**
+     * Report the amount only when editing ends (blur or Enter), not on every
+     * keystroke. For fields that write straight to the database, where each
+     * write recomputes the whole budget.
+     */
+    commitOnBlur?: boolean
     'aria-label'?: string
   }
 >(function AmountInput(
-  { value, onChange, format, placeholder, className, id, autoFocus, selectOnFocus = true, onEnter, onEscape, blankZero, disabled, ...rest },
+  { value, onChange, format, placeholder, className, id, autoFocus, selectOnFocus = true, onEnter, onEscape, blankZero, disabled, commitOnBlur, ...rest },
   ref,
 ) {
   const ctx = useData()
@@ -130,6 +136,8 @@ export const AmountInput = forwardRef<
   const [text, setText] = useState('')
   const [editing, setEditing] = useState(false)
   const [invalid, setInvalid] = useState(false)
+  // Enter commits and then blurs; the blur must not write the same amount again.
+  const committed = useRef(false)
 
   // While focused the raw text stands so editing isn't fought by the
   // formatter; at rest it reads like every other amount on screen.
@@ -160,11 +168,19 @@ export const AmountInput = forwardRef<
         // the edit was silently lost. The parser accepts the symbol anyway.
         setText(value === 0 ? '' : formatMoney(value, fmt))
         if (selectOnFocus) requestAnimationFrame(() => field.select())
-        // The app shell is pinned to the viewport, so the browser will not
-        // scroll the page to lift a field clear of the on-screen keyboard.
-        // Nudge the surrounding scroller once the keyboard has animated in.
+        // Once the keyboard has animated in, lift the field clear of it — but
+        // only if it is actually hidden. The browser usually brings a focused
+        // field into view itself, and a second, unconditional scroll on top
+        // of that made the page lurch on every tap.
         if (window.matchMedia('(pointer: coarse)').matches) {
-          window.setTimeout(() => field.scrollIntoView({ block: 'center', behavior: 'smooth' }), 300)
+          window.setTimeout(() => {
+            if (document.activeElement !== field) return
+            const box = field.getBoundingClientRect()
+            const vv = window.visualViewport
+            const top = (vv?.offsetTop ?? 0) + 64
+            const bottom = (vv ? vv.offsetTop + vv.height : window.innerHeight) - 12
+            if (box.top < top || box.bottom > bottom) field.scrollIntoView({ block: 'center', behavior: 'smooth' })
+          }, 350)
         }
       }}
       onChange={(e) => {
@@ -174,22 +190,25 @@ export const AmountInput = forwardRef<
         setInvalid(next.trim() !== '' && parsed === null)
         // Commit as they type so totals stay live and Save buttons don't sit
         // disabled next to an amount the user can plainly see.
-        if (parsed !== null && parsed !== value) onChange(parsed)
+        if (!commitOnBlur && parsed !== null && parsed !== value) onChange(parsed)
       }}
       onBlur={() => {
         const parsed = text.trim() === '' ? 0 : parseMoney(text, fmt)
         setEditing(false)
         setInvalid(false)
-        if (parsed !== null && parsed !== value) onChange(parsed)
+        if (committed.current) committed.current = false
+        else if (parsed !== null && parsed !== value) onChange(parsed)
       }}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {
           const parsed = text.trim() === '' ? 0 : parseMoney(text, fmt)
           if (parsed !== null && parsed !== value) onChange(parsed)
+          committed.current = true
           setEditing(false)
           onEnter?.()
           e.currentTarget.blur()
         } else if (e.key === 'Escape') {
+          committed.current = true
           setEditing(false)
           setText('')
           onEscape?.()

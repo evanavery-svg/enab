@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from './Icon'
 
@@ -12,25 +12,59 @@ interface ModalProps {
   headerExtra?: ReactNode
 }
 
-export function Modal({ title, onClose, children, footer, wide, headerExtra }: ModalProps) {
-  const ref = useRef<HTMLDivElement>(null)
+/** Matches the exit animations in components.css and layout.css. */
+const EXIT_MS = 170
 
+/**
+ * Close with a short exit animation instead of vanishing. `onClose` still
+ * runs, just once the sheet has slid away. Reduced-motion users get it at once.
+ */
+function useDismiss(onClose: () => void) {
+  const latest = useRef(onClose)
+  latest.current = onClose
+  const [closing, setClosing] = useState(false)
+  const timer = useRef<number>()
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+  const dismiss = useCallback(() => {
+    if (timer.current !== undefined) return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (reduce) {
+      latest.current()
+      return
+    }
+    setClosing(true)
+    timer.current = window.setTimeout(() => latest.current(), EXIT_MS)
+  }, [])
+  return { closing, dismiss }
+}
+
+/**
+ * Hold the page still while a sheet is open, and listen for Escape. Runs once
+ * per sheet: re-applying the lock on every render (every keystroke in a
+ * field) restyled the whole document each time.
+ */
+function useSheetEffects(dismiss: () => void) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
-        onClose()
+        dismiss()
       }
     }
     document.addEventListener('keydown', onKey)
-    // Keep the page behind from scrolling under the sheet on iOS.
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', onKey)
       document.body.style.overflow = prev
     }
-  }, [onClose])
+  }, [dismiss])
+}
+
+export function Modal({ title, onClose, children, footer, wide, headerExtra }: ModalProps) {
+  const ref = useRef<HTMLDivElement>(null)
+  const { closing, dismiss } = useDismiss(onClose)
+  useSheetEffects(dismiss)
 
   useEffect(() => {
     // Send focus to the first field so typing starts where it should. With no
@@ -45,9 +79,9 @@ export function Modal({ title, onClose, children, footer, wide, headerExtra }: M
 
   return createPortal(
     <div
-      className="scrim"
+      className={`scrim${closing ? ' closing' : ''}`}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose()
+        if (e.target === e.currentTarget) dismiss()
       }}
     >
       <div
@@ -60,7 +94,7 @@ export function Modal({ title, onClose, children, footer, wide, headerExtra }: M
         <header className="modal-head">
           <h2>{title}</h2>
           {headerExtra}
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
+          <button className="icon-btn" onClick={dismiss} aria-label="Close">
             <Icon name="x" />
           </button>
         </header>
@@ -81,20 +115,17 @@ interface DrawerProps {
 }
 
 export function Drawer({ title, onClose, children, footer, headerExtra }: DrawerProps) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
+  const { closing, dismiss } = useDismiss(onClose)
+  useSheetEffects(dismiss)
 
   return createPortal(
     <>
-      <div className="drawer-scrim" onClick={onClose} />
-      <aside className="drawer" role="dialog" aria-modal="true">
+      <div className={`drawer-scrim${closing ? ' closing' : ''}`} onClick={dismiss} />
+      <aside className={`drawer${closing ? ' closing' : ''}`} role="dialog" aria-modal="true">
         <header className="drawer-head">
           <h2 className="truncate">{title}</h2>
           {headerExtra}
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
+          <button className="icon-btn" onClick={dismiss} aria-label="Close">
             <Icon name="x" />
           </button>
         </header>

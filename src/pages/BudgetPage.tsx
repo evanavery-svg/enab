@@ -612,6 +612,7 @@ function CategoryRow({
           aria-label={`Assigned to ${category.name}`}
           value={state.assigned}
           onChange={(v) => setAssigned(month, category.id, v)}
+          commitOnBlur
           blankZero
           // Blank keeps a fresh budget quiet, but a blank, borderless field on
           // a phone gave no hint it could be tapped. A faint zero does.

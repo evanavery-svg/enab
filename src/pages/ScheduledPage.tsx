@@ -6,7 +6,7 @@ import { useData } from '../hooks/useData'
 import { toast, useUi } from '../state/ui'
 import { deleteScheduled, enterScheduled, skipScheduled, updateScheduled } from '../db/actions'
 import { FREQUENCY_LABELS, occurrencesBetween } from '../budget/recurrence'
-import { addDays, friendlyDate, today } from '../lib/dates'
+import { addDays, compareIso, friendlyDate, today } from '../lib/dates'
 import type { Id } from '../types'
 
 export default function ScheduledPage() {
@@ -15,7 +15,7 @@ export default function ScheduledPage() {
   const [confirmDelete, setConfirmDelete] = useState<Id | null>(null)
 
   const rows = useMemo(
-    () => [...scheduled].sort((a, b) => a.nextDate.localeCompare(b.nextDate)),
+    () => [...scheduled].sort((a, b) => compareIso(a.nextDate, b.nextDate)),
     [scheduled],
   )
 

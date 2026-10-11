@@ -75,7 +75,7 @@ async function boot() {
   createRoot(container).render(
     <StrictMode>
       <ErrorBoundary>
-        <HashRouter>
+        <HashRouter future={{ v7_startTransition: true }}>
           <DataProvider>
             <App />
           </DataProvider>

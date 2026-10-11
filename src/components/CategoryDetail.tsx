@@ -179,6 +179,7 @@ export function CategoryDetail({ categoryId }: { categoryId: Id }) {
             <AmountInput
               value={state.assigned}
               onChange={(v) => setAssigned(month, categoryId, v)}
+              commitOnBlur
               blankZero
               placeholder="0.00"
             />

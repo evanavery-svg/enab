@@ -29,7 +29,14 @@ export function Sidebar() {
     items.reduce((sum, a) => sum + (balances.get(a.id)?.working ?? 0), 0)
 
   return (
-    <aside className="sidebar">
+    <aside
+      className="sidebar"
+      // Close the phone drawer the moment a link is tapped, so it slides away
+      // while the next page renders instead of waiting for it.
+      onClick={(e) => {
+        if ((e.target as HTMLElement).closest('a')) closeNav()
+      }}
+    >
       <div className="sidebar-head">
         <div className="sidebar-brand">
           <Logo size={26} />

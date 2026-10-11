@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { startTransition, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Icon } from '../components/Icon'
 import { NavMenuButton } from '../components/NavMenuButton'
@@ -19,7 +19,7 @@ import {
   setClearedStatus,
   skipScheduled,
 } from '../db/actions'
-import { formatDate, friendlyDate, today } from '../lib/dates'
+import { compareIso, formatDate, friendlyDate, today } from '../lib/dates'
 import type { Cents, Id, Transaction } from '../types'
 
 type FilterKey = 'all' | 'uncategorized' | 'uncleared' | 'unapproved' | 'flagged' | 'inflow' | 'outflow'
@@ -64,7 +64,7 @@ export default function RegisterPage() {
     if (!accountId) return []
     const mine = transactions
       .filter((t) => t.accountId === accountId)
-      .sort((a, b) => (a.date === b.date ? a.createdAt.localeCompare(b.createdAt) : a.date.localeCompare(b.date)))
+      .sort((a, b) => compareIso(a.date, b.date) || compareIso(a.createdAt, b.createdAt))
 
     let running = 0
     const withBalance = mine.map((t) => {
@@ -113,7 +113,7 @@ export default function RegisterPage() {
     () =>
       scheduled
         .filter((s) => s.accountId === accountId && !s.paused)
-        .sort((a, b) => a.nextDate.localeCompare(b.nextDate))
+        .sort((a, b) => compareIso(a.nextDate, b.nextDate))
         .slice(0, 4),
     [scheduled, accountId],
   )
@@ -129,7 +129,9 @@ export default function RegisterPage() {
     if (!sentinel || typeof IntersectionObserver === 'undefined') return
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) setLimit((n) => n + REGISTER_PAGE)
+        // A transition, so building the next page of rows yields to the
+        // scroll that revealed it instead of stalling it mid-flick.
+        if (entries.some((e) => e.isIntersecting)) startTransition(() => setLimit((n) => n + REGISTER_PAGE))
       },
       { rootMargin: '800px 0px' },
     )

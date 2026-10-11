@@ -81,9 +81,26 @@ export function addMonthsToDate(date: ISODate, months: number): ISODate {
   return toISODate(d)
 }
 
+/** Whole days since the epoch for a `YYYY-MM-DD` date. UTC, so DST never shifts it. */
+function dayNumber(date: ISODate): number {
+  return Date.UTC(+date.slice(0, 4), +date.slice(5, 7) - 1, +date.slice(8, 10)) / 86_400_000
+}
+
+/**
+ * Days from `a` to `b`. Runs over whole histories (recurring-charge detection,
+ * age of money), so it does plain arithmetic instead of building Dates.
+ */
 export function daysBetween(a: ISODate, b: ISODate): number {
-  const MS = 86_400_000
-  return Math.round((fromISODate(b).getTime() - fromISODate(a).getTime()) / MS)
+  return dayNumber(b) - dayNumber(a)
+}
+
+/**
+ * Order ISO dates and timestamps. They sort correctly as plain strings, and a
+ * plain comparison is many times faster than `localeCompare`, which runs full
+ * locale collation on every call.
+ */
+export function compareIso(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0
 }
 
 export function monthLabel(month: MonthKey, opts: { short?: boolean; withYear?: boolean } = {}): string {

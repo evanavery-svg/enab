@@ -5,7 +5,7 @@ import { BarChart, Legend, LineChart, Sparkline } from '../components/charts'
 import { useData } from '../hooks/useData'
 import { useUi } from '../state/ui'
 import { computeAgeOfMoney } from '../budget/ageOfMoney'
-import { addMonths, monthEnd, monthLabel, monthRange } from '../lib/dates'
+import { addMonths, compareIso, monthEnd, monthLabel, monthRange } from '../lib/dates'
 import { formatCompact } from '../lib/money'
 import type { Cents, Id, MonthKey } from '../types'
 
@@ -106,7 +106,7 @@ export default function ReportsPage() {
   const { netWorthSeries, accountBreakdown, netWorthChange } = useMemo(() => {
     const live = new Set(accounts.map((a) => a.id))
     const byMonth = new Map<MonthKey, Cents[]>()
-    const sorted = [...transactions].sort((a, b) => a.date.localeCompare(b.date))
+    const sorted = [...transactions].sort((a, b) => compareIso(a.date, b.date))
     const balancePerAccount = new Map<Id, Cents>()
     let cursor = 0
     for (const m of months) {

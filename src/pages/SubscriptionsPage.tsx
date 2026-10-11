@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { startTransition, useEffect, useMemo, useState } from 'react'
 import { Icon } from '../components/Icon'
 import { NavMenuButton } from '../components/NavMenuButton'
 import { Modal } from '../components/Modal'
@@ -7,7 +7,7 @@ import { useData } from '../hooks/useData'
 import { toast, useUi } from '../state/ui'
 import { deleteSubscription, saveSubscription, setAssigned, setSubscriptionStatus, type SubscriptionInput } from '../db/actions'
 import { detectRecurring, type RecurringSeries } from '../budget/analyze'
-import { currentMonth, monthLabel, today } from '../lib/dates'
+import { compareIso, currentMonth, monthLabel, today } from '../lib/dates'
 import {
   BILLED_THROUGH,
   CADENCE_SUFFIX,
@@ -37,11 +37,19 @@ export default function SubscriptionsPage() {
   const active = useMemo(() => sortByCost(subscriptions.filter((s) => s.status === 'active')), [subscriptions])
   const cancelled = useMemo(() => sortByCost(subscriptions.filter((s) => s.status === 'cancelled')), [subscriptions])
 
-  // Repeating charges in the bank history that aren't tracked yet.
+  // Repeating charges in the bank history that aren't tracked yet. Scanning
+  // the whole history is the slowest thing on this page and its card sits at
+  // the bottom, so the page paints first and the scan follows a beat later.
+  const [scan, setScan] = useState(false)
+  useEffect(() => {
+    const t = window.setTimeout(() => startTransition(() => setScan(true)), 60)
+    return () => window.clearTimeout(t)
+  }, [])
   const found = useMemo(() => {
+    if (!scan) return []
     const series = detectRecurring({ accounts, categories, payees, transactions, asOf: todayIso })
     return series.filter((s) => s.isSubscription && !isTracked(s, subscriptions))
-  }, [accounts, categories, payees, transactions, subscriptions, todayIso])
+  }, [scan, accounts, categories, payees, transactions, subscriptions, todayIso])
   const foundHere = found.filter((s) => (tab === 'active' ? s.active : !s.active))
 
   async function track(series: RecurringSeries) {
@@ -244,7 +252,7 @@ function NextUp({ subs, today: todayIso, onOpen }: { subs: Subscription[]; today
   const upcoming = subs
     .map((s) => ({ s, date: nextCharge(s, todayIso) }))
     .filter((x): x is { s: Subscription; date: string } => !!x.date)
-    .sort((a, b) => a.date.localeCompare(b.date))
+    .sort((a, b) => compareIso(a.date, b.date))
     .slice(0, 6)
   if (upcoming.length === 0) return null
   return (

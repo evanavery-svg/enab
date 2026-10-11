@@ -9,7 +9,7 @@ import type {
   Payee,
   Transaction,
 } from '../types'
-import { addDays, addMonths, addMonthsToDate, daysBetween, monthDiff, today } from '../lib/dates'
+import { addDays, addMonths, addMonthsToDate, compareIso, daysBetween, monthDiff, today } from '../lib/dates'
 import type { BudgetResult } from './engine'
 
 /* ------------------------------------------------------------------ */
@@ -170,7 +170,7 @@ export function detectRecurring(input: DetectInput): RecurringSeries[] {
 
   for (const [payeeId, charges] of byPayee) {
     if (charges.length < minOccurrences) continue
-    charges.sort((a, b) => a.date.localeCompare(b.date))
+    charges.sort((a, b) => compareIso(a.date, b.date))
 
     const gaps: number[] = []
     for (let i = 1; i < charges.length; i++) {

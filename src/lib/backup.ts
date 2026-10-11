@@ -1,5 +1,6 @@
 import { db, clearAllTables, preservingTimestamps } from '../db/db'
 import { toCsv } from './csv'
+import { compareIso } from './dates'
 import { base64ToBlob, blobToBase64, type SerializedAttachment } from './attachments'
 import type {
   Account,
@@ -157,7 +158,7 @@ export async function exportTransactionsCsv(): Promise<string> {
 
   const decimal = (cents: number) => (Math.abs(cents) / 100).toFixed(2)
 
-  for (const t of transactions.filter((x) => !x.deleted).sort((a, b) => a.date.localeCompare(b.date))) {
+  for (const t of transactions.filter((x) => !x.deleted).sort((a, b) => compareIso(a.date, b.date))) {
     const emit = (amount: number, categoryId: string | null, memo: string) => {
       rows.push([
         accountName.get(t.accountId) ?? '',

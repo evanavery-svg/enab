@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react'
 import { Route, Routes, useLocation } from 'react-router-dom'
 import { Toasts } from './components/Toasts'
 import { Sidebar } from './components/Sidebar'
@@ -13,14 +13,42 @@ import BudgetPage from './pages/BudgetPage'
 // The Budget screen is where the app opens, so it ships in the main bundle.
 // Everything else loads on first visit — the service worker precaches every
 // chunk, so this costs nothing offline and shortens the launch on a phone.
-const AccountsPage = lazy(() => import('./pages/AccountsPage'))
-const RegisterPage = lazy(() => import('./pages/RegisterPage'))
-const ReportsPage = lazy(() => import('./pages/ReportsPage'))
-const PlanPage = lazy(() => import('./pages/PlanPage'))
-const SettingsPage = lazy(() => import('./pages/SettingsPage'))
-const PayeesPage = lazy(() => import('./pages/PayeesPage'))
-const ScheduledPage = lazy(() => import('./pages/ScheduledPage'))
-const SubscriptionsPage = lazy(() => import('./pages/SubscriptionsPage'))
+const pages = {
+  accounts: () => import('./pages/AccountsPage'),
+  register: () => import('./pages/RegisterPage'),
+  reports: () => import('./pages/ReportsPage'),
+  plan: () => import('./pages/PlanPage'),
+  settings: () => import('./pages/SettingsPage'),
+  payees: () => import('./pages/PayeesPage'),
+  scheduled: () => import('./pages/ScheduledPage'),
+  subscriptions: () => import('./pages/SubscriptionsPage'),
+}
+const AccountsPage = lazy(pages.accounts)
+const RegisterPage = lazy(pages.register)
+const ReportsPage = lazy(pages.reports)
+const PlanPage = lazy(pages.plan)
+const SettingsPage = lazy(pages.settings)
+const PayeesPage = lazy(pages.payees)
+const ScheduledPage = lazy(pages.scheduled)
+const SubscriptionsPage = lazy(pages.subscriptions)
+
+/**
+ * Load every other screen's code once the app has settled. Until a lazy page
+ * has loaded, opening it blanks the screen for a beat while the chunk is
+ * fetched and parsed; warmed up in idle time, every tab opens at once.
+ */
+function preloadPages() {
+  const idle =
+    (window as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback ??
+    ((cb: () => void) => window.setTimeout(cb, 1))
+  const queue = Object.values(pages)
+  const next = () => {
+    const load = queue.shift()
+    if (!load) return
+    load().catch(() => {}).finally(() => idle(next, { timeout: 2000 }))
+  }
+  window.setTimeout(() => idle(next, { timeout: 2000 }), 1200)
+}
 
 export default function App() {
   const { settings, ready } = useData()
@@ -35,6 +63,15 @@ export default function App() {
   // The drawer closes itself whenever the route changes, so tapping any nav
   // link inside it dismisses it.
   useEffect(() => closeNav(), [location.pathname, closeNav])
+
+  useEffect(preloadPages, [])
+
+  // A new screen starts at its top. On a phone the document is what scrolls,
+  // so without this a page opened from halfway down the budget would open
+  // halfway down too.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0)
+  }, [location.pathname])
 
   // Lock background scroll while the drawer is open. On a phone the page
   // itself scrolls now, and the scrim only blocks touch/click — a wheel or

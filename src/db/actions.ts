@@ -1,7 +1,7 @@
 import { db } from './db'
 import { CREDIT_GROUP_ID, INFLOW_CATEGORY_ID, buildSeed, defaultSettings } from './seed'
 import { uid } from '../lib/id'
-import { addDays, monthOf, today } from '../lib/dates'
+import { addDays, compareIso, monthOf, today } from '../lib/dates'
 import { nextOccurrence } from '../budget/recurrence'
 import type {
   Account,
@@ -686,7 +686,7 @@ export async function importTransactions(
     const liveCategory = new Set((await db.categories.toArray()).filter((c) => !c.deleted).map((c) => c.id))
 
     let categorized = 0
-    for (const row of [...rows].sort((a, b) => a.date.localeCompare(b.date))) {
+    for (const row of [...rows].sort((a, b) => compareIso(a.date, b.date))) {
       let payee = row.payee ? payeeByName.get(row.payee.toLowerCase()) : undefined
       if (row.payee && !payee) {
         payee = { id: uid('payee'), name: row.payee, deleted: false }

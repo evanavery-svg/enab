@@ -62,7 +62,7 @@
   font-weight: 550;
   text-decoration: none;
 }
-.nav-link:hover { background: var(--surface-2); text-decoration: none; }
+@media (hover: hover) { .nav-link:hover { background: var(--surface-2); text-decoration: none; } }
 .nav-link.active { background: var(--accent-soft); color: var(--text); font-weight: 650; }
 .nav-link .nav-amount {
   margin-left: auto;
