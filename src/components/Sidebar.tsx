@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import { useCheckIn } from '../hooks/useCheckIn'
 import { Icon } from './Icon'
 import { Logo } from './Logo'
 import { AccountFormModal } from './AccountForm'
@@ -13,6 +14,7 @@ export function Sidebar() {
   const month = useUi((s) => s.month)
   const openTxnModal = useUi((s) => s.openTxnModal)
   const closeNav = useUi((s) => s.closeNav)
+  const attention = useCheckIn().attention
   const groceryCount = groceryItems.filter((i) => !i.deleted && !i.checked).length
   const [addingAccount, setAddingAccount] = useState(false)
 
@@ -44,16 +46,25 @@ export function Sidebar() {
           <span>ENAB</span>
         </div>
         <div className="sidebar-budget-name truncate">{settings.budgetName}</div>
-        <button
-          className="btn btn-primary btn-block"
-          style={{ marginTop: 10 }}
-          onClick={() => {
-            closeNav()
-            openTxnModal()
-          }}
-        >
-          <Icon name="plus" size={16} /> Add Transaction
-        </button>
+        <div className="sidebar-actions">
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              closeNav()
+              openTxnModal()
+            }}
+          >
+            <Icon name="plus" size={16} /> Add Transaction
+          </button>
+          <NavLink
+            to="/search"
+            className={({ isActive }) => `btn sidebar-search${isActive ? ' active' : ''}`}
+            aria-label="Search transactions"
+            title="Search transactions (/)"
+          >
+            <Icon name="search" size={18} />
+          </NavLink>
+        </div>
       </div>
 
       <div className="sidebar-scroll">
@@ -61,6 +72,11 @@ export function Sidebar() {
           <Icon name="layers" />
           <span>Budget</span>
           <span className={`nav-amount ${readyToAssign < 0 ? 'neg' : ''}`}>{money(readyToAssign)}</span>
+        </NavLink>
+        <NavLink to="/today" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+          <Icon name="calendar" />
+          <span>Today</span>
+          {attention > 0 && <span className="nav-badge" aria-label={`${attention} need attention`}>{attention}</span>}
         </NavLink>
         <NavLink to="/plan" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
           <Icon name="target" />

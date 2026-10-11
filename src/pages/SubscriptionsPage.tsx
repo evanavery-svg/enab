@@ -5,7 +5,18 @@ import { Modal } from '../components/Modal'
 import { AmountInput, Field } from '../components/Fields'
 import { useData } from '../hooks/useData'
 import { toast, useUi } from '../state/ui'
-import { deleteSubscription, saveSubscription, setAssigned, setSubscriptionStatus, type SubscriptionInput } from '../db/actions'
+import {
+  createCategory,
+  createCategoryGroup,
+  deleteSubscription,
+  fundSubscriptionsFrom,
+  saveSubscription,
+  setAssigned,
+  setSubscriptionStatus,
+  stopFundingSubscriptions,
+  type SubscriptionInput,
+} from '../db/actions'
+import { CategorySelect } from '../components/CategorySelect'
 import { detectRecurring, type RecurringSeries } from '../budget/analyze'
 import { compareIso, currentMonth, monthLabel, today } from '../lib/dates'
 import {
@@ -29,7 +40,7 @@ import type { Cents, Subscription, SubscriptionCadence } from '../types'
 type Tab = 'active' | 'cancelled'
 
 export default function SubscriptionsPage() {
-  const { subscriptions, accounts, categories, payees, transactions, budget, money } = useData()
+  const { subscriptions, accounts, categories, payees, transactions, money } = useData()
   const [tab, setTab] = useState<Tab>('active')
   const [editing, setEditing] = useState<Subscription | 'new' | null>(null)
   const todayIso = today()
@@ -86,7 +97,7 @@ export default function SubscriptionsPage() {
             <>
               {active.length > 0 && <SpendHero subs={active} />}
               {active.length > 0 && <NextUp subs={active} today={todayIso} onOpen={setEditing} />}
-              {active.length > 0 && <BudgetTie monthly={totals(active).monthly} budget={budget} />}
+              {active.length > 0 && <FundingCard subs={active} today={todayIso} />}
             </>
           ) : (
             cancelled.length > 0 && <SavingsHero subs={cancelled} today={todayIso} />
@@ -280,41 +291,153 @@ function NextUp({ subs, today: todayIso, onOpen }: { subs: Subscription[]; today
   )
 }
 
-/** The YNAB question: is the money for these already set aside? */
-function BudgetTie({ monthly, budget }: { monthly: Cents; budget: ReturnType<typeof useData>['budget'] }) {
-  const { categories, money } = useData()
+/**
+ * The YNAB question: is the money for these already set aside? Once a
+ * category pays for subscriptions, its target follows them — monthly ones in
+ * full, yearly ones a twelfth at a time — and this card shows the renewals
+ * filling up.
+ */
+function FundingCard({ subs, today: todayIso }: { subs: Subscription[]; today: string }) {
+  const { categories, groups, budget, money } = useData()
   const openDetail = useUi((s) => s.openCategoryDetail)
   const month = currentMonth()
-  const category = categories.find((c) => c.name.trim().toLowerCase() === 'subscriptions' && !c.hidden)
-  if (!category || monthly <= 0) return null
-  const assigned = budget.categoryStates.get(month)?.get(category.id)?.assigned ?? 0
-  const covered = assigned >= monthly
+  const funding = categories.find((c) => c.goal?.source === 'subscriptions')
+  const named = categories.find((c) => c.name.trim().toLowerCase() === 'subscriptions' && !c.hidden)
+  const [choice, setChoice] = useState<string | null>(named?.id ?? null)
+  const [busy, setBusy] = useState(false)
+
+  if (!funding) {
+    async function start() {
+      setBusy(true)
+      try {
+        let id = choice
+        if (!id) {
+          const group =
+            groups.find((g) => /quality of life/i.test(g.name) && !g.isSystem && !g.isInternal) ??
+            groups.find((g) => !g.isSystem && !g.isInternal && !g.hidden)
+          id = await createCategory(group ? group.id : await createCategoryGroup('Subscriptions'), 'Subscriptions')
+        }
+        await fundSubscriptionsFrom(id)
+        toast('Your subscriptions now have a target')
+      } finally {
+        setBusy(false)
+      }
+    }
+    return (
+      <section className="card subs-fund intro">
+        <div className="head">
+          <Icon name="target" size={18} />
+          <strong>Let your budget pay for these</strong>
+        </div>
+        <p>
+          Pick a category and its target keeps pace with your subscriptions: monthly ones in full, yearly ones saved a
+          little each month so renewals are already covered.
+        </p>
+        <div className="pick">
+          <CategorySelect value={choice} onChange={setChoice} includeInflow={false} noneLabel="New “Subscriptions” category" />
+          <button className="btn btn-primary" onClick={start} disabled={busy}>
+            Fund them
+          </button>
+        </div>
+      </section>
+    )
+  }
+
+  const state = budget.categoryStates.get(month)?.get(funding.id)
+  const available = state?.available ?? 0
+  const assigned = state?.assigned ?? 0
+  const need = state?.goalTarget ?? 0
+  const short = state?.goalUnderfunded ?? 0
+
+  // Share the category's money out: first to monthly charges still to come
+  // this month, then to yearly renewals in the order they fall due.
+  let pool = Math.max(0, available)
+  for (const s of subs) {
+    if (s.cadence !== 'yearly' && s.amount) {
+      const next = nextCharge(s, todayIso)
+      if (next && next.slice(0, 7) === month) pool -= s.amount
+    }
+  }
+  pool = Math.max(0, pool)
+  const renewals = subs
+    .filter((s) => s.cadence === 'yearly' && s.amount)
+    .map((s) => ({ s, next: nextCharge(s, todayIso) }))
+    .sort((a, b) => (a.next ?? '9999').localeCompare(b.next ?? '9999'))
+    .map(({ s, next }) => {
+      const saved = Math.min(pool, s.amount as Cents)
+      pool -= saved
+      return { s, next, saved }
+    })
 
   return (
-    <section className={`card subs-tie${covered ? ' ok' : ''}`}>
-      <Icon name={covered ? 'check' : 'target'} size={18} />
-      <div className="txt">
-        <strong>{covered ? 'Covered in your budget' : 'Set the money aside'}</strong>
-        <span>
-          {money(assigned)} assigned to{' '}
-          <button className="linkish" onClick={() => openDetail(category.id)}>
-            {category.name}
-          </button>{' '}
-          in {monthLabel(month, { withYear: false })}
-          {covered ? '' : ` · needs ${money(monthly)}`}
-        </span>
+    <section className={`card subs-fund${short > 0 ? '' : ' ok'}`}>
+      <div className="head">
+        <Icon name={short > 0 ? 'target' : 'check'} size={18} />
+        <strong>
+          Paid from{' '}
+          <button className="linkish" onClick={() => openDetail(funding.id)}>
+            {funding.name}
+          </button>
+        </strong>
+        <span className="avail">{money(available)}</span>
       </div>
-      {!covered && (
-        <button
-          className="btn btn-sm btn-primary"
-          onClick={async () => {
-            await setAssigned(month, category.id, monthly)
-            toast(`Assigned ${money(monthly)} to ${category.name}`)
-          }}
-        >
-          Assign {money(monthly)}
-        </button>
+      <div className="line">
+        {short > 0
+          ? `${monthLabel(month, { withYear: false })} needs ${money(need)} · ${money(assigned)} assigned`
+          : need > 0
+            ? `${monthLabel(month, { withYear: false })}'s ${money(need)} is set aside`
+            : `${monthLabel(month, { withYear: false })} is already covered`}
+        {short > 0 && (
+          <button
+            className="btn btn-sm btn-primary"
+            onClick={async () => {
+              await setAssigned(month, funding.id, assigned + short)
+              toast(`Assigned ${money(short)} to ${funding.name}`)
+            }}
+          >
+            Assign {money(short)}
+          </button>
+        )}
+      </div>
+      {renewals.length > 0 && (
+        <div className="renewals">
+          <h4>Yearly renewals</h4>
+          {renewals.map(({ s, next, saved }) => {
+            const brand = brandOf(s.name)
+            const pct = Math.round((saved / (s.amount as Cents)) * 100)
+            const covered = saved >= (s.amount as Cents)
+            const soon = next ? whenLabel(next, todayIso) : s.billingMonth ? MONTH_SHORT[s.billingMonth - 1] : 'date unknown'
+            return (
+              <div className="renewal" key={s.id}>
+                <span className="sub-avatar xs" style={{ background: brand.bg, color: brand.fg }}>
+                  {brand.initial}
+                </span>
+                <div className="what">
+                  <div className="top">
+                    <span className="name truncate">{s.name}</span>
+                    <span className="amt">{money(s.amount as Cents)}</span>
+                  </div>
+                  <div className="bar" aria-hidden="true">
+                    <span style={{ width: `${pct}%` }} className={covered ? 'full' : ''} />
+                  </div>
+                  <div className="sub">
+                    {soon} · {covered ? 'covered' : `${money(saved)} put by`}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       )}
+      <button
+        className="linkish stop"
+        onClick={async () => {
+          await stopFundingSubscriptions()
+          toast(`${funding.name} no longer follows your subscriptions`)
+        }}
+      >
+        Stop funding from {funding.name}
+      </button>
     </section>
   )
 }

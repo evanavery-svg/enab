@@ -1,4 +1,4 @@
-import type { Cents, Goal, MonthKey } from '../types'
+import type { Cents, Goal, GoalBill, MonthKey } from '../types'
 import { addMonths, monthDiff, weekdayOccurrencesInMonth } from '../lib/dates'
 
 export interface GoalContext {
@@ -83,6 +83,7 @@ export function evaluateGoal(goal: Goal | undefined, ctx: GoalContext): GoalResu
 
   switch (goal.type) {
     case 'need': {
+      if (goal.bills) return evaluateBills(goal.bills, ctx, carried)
       const period = periodMonths(goal)
       const amount = periodAmount(goal, ctx.month)
       const style = goal.fundingStyle ?? (period > 1 ? 'refill' : 'refill')
@@ -174,11 +175,49 @@ export function evaluateGoal(goal: Goal | undefined, ctx: GoalContext): GoalResu
   }
 }
 
+/** Months from `month` until the bill is next charged: 0 when it's this month. */
+export function monthsUntilBill(bill: GoalBill, month: MonthKey): number {
+  if (bill.everyMonths <= 1 || !bill.dueMonth) return 0
+  const d = monthDiff(month, bill.dueMonth) % bill.everyMonths
+  return d < 0 ? d + bill.everyMonths : d
+}
+
+/**
+ * What a month needs to hold for a bundle of bills: each monthly bill in full,
+ * and each longer bill's share so far — a yearly $120 bill wants $10 in the
+ * month after it's charged, $20 the month after, and all $120 by the month it
+ * comes due. Money already in the category counts toward it, so a category
+ * that fell behind asks for the catch-up, and one that's ahead asks for less.
+ */
+function evaluateBills(bills: GoalBill[], ctx: GoalContext, carried: Cents): GoalResult {
+  let needed = 0
+  for (const bill of bills) {
+    if (bill.everyMonths <= 1) {
+      needed += bill.amount
+      continue
+    }
+    const share = bill.everyMonths - monthsUntilBill(bill, ctx.month)
+    needed += Math.ceil((bill.amount * share) / bill.everyMonths)
+  }
+  const target = Math.max(0, needed - carried)
+  return {
+    target,
+    underfunded: Math.max(0, target - ctx.assigned),
+    percent: target === 0 ? 1 : Math.min(1, ctx.assigned / target),
+    dueMonth: ctx.month,
+    missed: false,
+  }
+}
+
 /** Human-readable summary of a target, for the category detail panel. */
 export function describeGoal(goal: Goal, currency: (c: Cents) => string): string {
   const amt = currency(goal.amount)
   switch (goal.type) {
     case 'need': {
+      if (goal.bills) {
+        const n = goal.bills.length
+        return `Pays for ${n} subscription${n === 1 ? '' : 's'} · about ${amt} a month`
+      }
       const style = goal.fundingStyle === 'setAside' ? 'Set aside' : 'Refill up to'
       switch (goal.cadence) {
         case 'weekly':

@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useLayoutEffect, useState } from 'react'
-import { Route, Routes, useLocation } from 'react-router-dom'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Toasts } from './components/Toasts'
 import { Sidebar } from './components/Sidebar'
 import { TransactionModal } from './components/TransactionModal'
@@ -23,6 +23,8 @@ const pages = {
   scheduled: () => import('./pages/ScheduledPage'),
   subscriptions: () => import('./pages/SubscriptionsPage'),
   groceries: () => import('./pages/GroceriesPage'),
+  today: () => import('./pages/TodayPage'),
+  search: () => import('./pages/SearchPage'),
 }
 const AccountsPage = lazy(pages.accounts)
 const RegisterPage = lazy(pages.register)
@@ -33,6 +35,8 @@ const PayeesPage = lazy(pages.payees)
 const ScheduledPage = lazy(pages.scheduled)
 const SubscriptionsPage = lazy(pages.subscriptions)
 const GroceriesPage = lazy(pages.groceries)
+const TodayPage = lazy(pages.today)
+const SearchPage = lazy(pages.search)
 
 /**
  * Load every other screen's code once the app has settled. Until a lazy page
@@ -67,6 +71,20 @@ export default function App() {
   useEffect(() => closeNav(), [location.pathname, closeNav])
 
   useEffect(preloadPages, [])
+
+  // "/" opens search from anywhere a keyboard is in use, unless typing.
+  const navigate = useNavigate()
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== '/' || e.metaKey || e.ctrlKey || e.altKey) return
+      const el = e.target as HTMLElement
+      if (el.closest('input, textarea, select, [contenteditable="true"]') || document.querySelector('.scrim, .drawer')) return
+      e.preventDefault()
+      navigate('/search')
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [navigate])
 
   // A new screen starts at its top. On a phone the document is what scrolls,
   // so without this a page opened from halfway down the budget would open
@@ -174,6 +192,8 @@ export default function App() {
             <Route path="/plan" element={<PlanPage />} />
             <Route path="/subscriptions" element={<SubscriptionsPage />} />
             <Route path="/groceries" element={<GroceriesPage />} />
+            <Route path="/today" element={<TodayPage />} />
+            <Route path="/search" element={<SearchPage />} />
             <Route path="/payees" element={<PayeesPage />} />
             <Route path="/scheduled" element={<ScheduledPage />} />
             <Route path="/settings" element={<SettingsPage />} />

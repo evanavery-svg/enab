@@ -1,7 +1,8 @@
 import { db } from './db'
 import { CREDIT_GROUP_ID, INFLOW_CATEGORY_ID, buildSeed, defaultSettings } from './seed'
 import { uid } from '../lib/id'
-import { addDays, compareIso, monthOf, today } from '../lib/dates'
+import { addDays, compareIso, currentMonth, monthOf, today } from '../lib/dates'
+import { subscriptionGoal } from '../lib/subscriptions'
 import { itemKey } from '../lib/grocery'
 import { nextOccurrence } from '../budget/recurrence'
 import type {
@@ -972,6 +973,7 @@ export async function saveSubscription(input: SubscriptionInput, id?: Id): Promi
     createdAt: existing?.createdAt ?? new Date().toISOString(),
     deleted: false,
   })
+  await syncSubscriptionGoal()
   return subId
 }
 
@@ -981,11 +983,49 @@ export async function setSubscriptionStatus(id: Id, status: Subscription['status
     status,
     cancelledOn: status === 'cancelled' ? (cancelledOn ?? today()) : undefined,
   })
+  await syncSubscriptionGoal()
 }
 
 /** Soft delete, so the removal reaches other devices on the next sync. */
 export async function deleteSubscription(id: Id): Promise<void> {
   await db.subscriptions.update(id, { deleted: true })
+  await syncSubscriptionGoal()
+}
+
+/** The category whose target pays for subscriptions, if one does. */
+async function fundingCategory() {
+  return (await db.categories.toArray()).find((c) => !c.deleted && c.goal?.source === 'subscriptions')
+}
+
+/**
+ * Pay for every tracked subscription out of one category: its target becomes
+ * the bundle of their bills, and follows them from then on. Only one category
+ * does this at a time.
+ */
+export async function fundSubscriptionsFrom(categoryId: Id): Promise<void> {
+  await db.transaction('rw', db.categories, db.subscriptions, async () => {
+    const previous = await fundingCategory()
+    if (previous && previous.id !== categoryId) await db.categories.update(previous.id, { goal: undefined })
+    const subs = (await db.subscriptions.toArray()).filter((x) => !x.deleted)
+    await db.categories.update(categoryId, { goal: subscriptionGoal(subs, currentMonth()) })
+  })
+}
+
+/** Stop: the category keeps its money but loses the target. */
+export async function stopFundingSubscriptions(): Promise<void> {
+  const category = await fundingCategory()
+  if (category) await db.categories.update(category.id, { goal: undefined })
+}
+
+/** Re-derive the funding target after any subscription changes. */
+export async function syncSubscriptionGoal(): Promise<void> {
+  await db.transaction('rw', db.categories, db.subscriptions, async () => {
+    const category = await fundingCategory()
+    if (!category?.goal) return
+    const subs = (await db.subscriptions.toArray()).filter((x) => !x.deleted)
+    const next = subscriptionGoal(subs, category.goal.startMonth)
+    if (JSON.stringify(next) !== JSON.stringify(category.goal)) await db.categories.update(category.id, { goal: next })
+  })
 }
 
 /* ------------------------------------------------------------------ */

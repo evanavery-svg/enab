@@ -306,3 +306,24 @@
 @media (max-width: 899px) {
   .hide-phone { display: none; }
 }
+
+/* A count of things waiting, on the Today link. */
+.nav-badge {
+  margin-left: auto;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--danger-solid);
+  color: #fff;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Add Transaction, with search beside it. */
+.sidebar-actions { display: flex; gap: 8px; margin-top: 10px; }
+.sidebar-actions .btn-primary { flex: 1; justify-content: center; }
+.sidebar-search { width: 44px; flex: none; padding: 0; justify-content: center; color: var(--text); text-decoration: none; }
+.sidebar-search.active { box-shadow: inset 0 0 0 1.5px var(--text); }
+@media (hover: hover) { .sidebar-search:hover { text-decoration: none; } }

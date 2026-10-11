@@ -5,7 +5,7 @@
  */
 import { addMonths, fromISODate, toISODate } from './dates'
 import type { RecurringSeries } from '../budget/analyze'
-import type { Cents, ISODate, Subscription, SubscriptionCadence } from '../types'
+import type { Cents, Goal, GoalBill, ISODate, Subscription, SubscriptionCadence } from '../types'
 
 export const CADENCE_SUFFIX: Record<SubscriptionCadence, string> = { monthly: '/mo', yearly: '/yr', weekly: '/wk' }
 const PER_YEAR: Record<SubscriptionCadence, number> = { monthly: 12, yearly: 1, weekly: 52 }
@@ -232,5 +232,44 @@ export function draftFromSeries(series: RecurringSeries): SubscriptionDraft {
     status: series.active ? 'active' : 'cancelled',
     cancelledOn: series.active ? undefined : series.lastDate,
     payeeId: series.payeeId,
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Funding from the budget                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The bills a funding target saves for: every active subscription with a
+ * price. Weekly plans count as their monthly average. A yearly plan without a
+ * known renewal month is assumed to renew a year after it was added, so it is
+ * still saved for a twelfth at a time.
+ */
+export function goalBills(subs: Subscription[]): GoalBill[] {
+  return subs
+    .filter((s) => s.status === 'active' && !s.deleted && s.amount !== null && s.amount > 0)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((s): GoalBill => {
+      const amount = s.amount as Cents
+      if (s.cadence === 'weekly') return { name: s.name, amount: Math.round((amount * 52) / 12), everyMonths: 1 }
+      if (s.cadence === 'monthly') return { name: s.name, amount, everyMonths: 1 }
+      const added = (s.createdAt || '2000-01').slice(0, 7)
+      const dueMonth = s.billingMonth
+        ? `${added.slice(0, 4)}-${String(s.billingMonth).padStart(2, '0')}`
+        : addMonths(added, 11)
+      return { name: s.name, amount, everyMonths: 12, dueMonth }
+    })
+}
+
+/** The target that pays for every tracked subscription out of one category. */
+export function subscriptionGoal(subs: Subscription[], startMonth: string): Goal {
+  return {
+    type: 'need',
+    amount: totals(subs.filter((s) => s.status === 'active' && !s.deleted)).monthly,
+    cadence: 'monthly',
+    fundingStyle: 'refill',
+    startMonth,
+    bills: goalBills(subs),
+    source: 'subscriptions',
   }
 }

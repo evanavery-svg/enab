@@ -99,3 +99,37 @@ describe('balance targets', () => {
     expect(evaluateGoal(goal, ctx({ month: '2025-03', carriedOver: 50_000 })).missed).toBe(true)
   })
 })
+
+describe('bill bundles (funding subscriptions)', () => {
+  const goal: Goal = {
+    type: 'need',
+    amount: 2966,
+    cadence: 'monthly',
+    startMonth: '2026-01',
+    bills: [
+      { name: 'Claude', amount: 2299, everyMonths: 1 },
+      { name: 'PlayStation Plus', amount: 7999, everyMonths: 12, dueMonth: '2026-10' },
+    ],
+  }
+  const at = (month: string, carriedOver = 0, assigned = 0) => evaluateGoal(goal, { month, carriedOver, assigned, activity: 0 })
+
+  it('saves a yearly bill a twelfth at a time after it renews', () => {
+    expect(at('2026-11').target).toBe(2299 + 667)
+    expect(at('2027-04', 3335).target).toBe(2299 + 4000 - 3335)
+  })
+
+  it('asks for the whole renewal in its month when nothing was put by', () => {
+    expect(at('2026-10').target).toBe(2299 + 7999)
+  })
+
+  it('asks for only the monthly bills once the yearly share is already there', () => {
+    // September of a fully funded year: 11/12 of the renewal already sits in the category.
+    const r = at('2026-09', Math.ceil((7999 * 11) / 12), 2299)
+    expect(r.target).toBe(2299)
+    expect(r.underfunded).toBe(0)
+  })
+
+  it('treats any year of the due month as the renewal month', () => {
+    expect(at('2030-10').target).toBe(2299 + 7999)
+  })
+})

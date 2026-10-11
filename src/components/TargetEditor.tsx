@@ -103,6 +103,12 @@ export function TargetEditor({ category, onClose }: { category: Category; onClos
         </>
       }
     >
+      {existing?.source === 'subscriptions' && (
+        <p className="callout">
+          This target follows your subscriptions and updates itself when they change. Saving here replaces it with a
+          fixed target.
+        </p>
+      )}
       <Field label="I want to…" hint={TYPE_OPTIONS.find((t) => t.value === type)?.blurb}>
         <select className="select" value={type} onChange={(e) => setType(e.target.value as GoalType)}>
           {TYPE_OPTIONS.map((t) => (

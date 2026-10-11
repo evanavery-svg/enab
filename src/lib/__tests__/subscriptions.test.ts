@@ -128,3 +128,24 @@ describe('from transactions', () => {
     expect(isTracked(series('SPOTIFY USA'), [sub('Netflix', 1799, 'monthly')])).toBe(false)
   })
 })
+
+describe('funding subscriptions from a category', () => {
+  it('turns tracked subscriptions into a bundle of bills', async () => {
+    const { goalBills } = await import('../subscriptions')
+    const base = { amountIsEstimate: false, billedThrough: '', createdAt: '2026-03-02T00:00:00Z', deleted: false, id: 'x' }
+    const bills = goalBills([
+      { ...base, name: 'Claude', amount: 2299, cadence: 'monthly', billingDay: 30, billingMonth: null, status: 'active' },
+      { ...base, name: 'PlayStation Plus', amount: 7999, cadence: 'yearly', billingDay: 14, billingMonth: 10, status: 'active' },
+      { ...base, name: 'Mystery yearly', amount: 1200, cadence: 'yearly', billingDay: null, billingMonth: null, status: 'active' },
+      { ...base, name: 'Gym', amount: 1000, cadence: 'weekly', billingDay: null, billingMonth: null, status: 'active' },
+      { ...base, name: 'YouTube Premium', amount: null, cadence: 'monthly', billingDay: null, billingMonth: null, status: 'active' },
+      { ...base, name: 'Disney+', amount: 2159, cadence: 'monthly', billingDay: 27, billingMonth: null, status: 'cancelled' },
+    ])
+    expect(bills).toEqual([
+      { name: 'Claude', amount: 2299, everyMonths: 1 },
+      { name: 'Gym', amount: 4333, everyMonths: 1 },
+      { name: 'Mystery yearly', amount: 1200, everyMonths: 12, dueMonth: '2027-02' },
+      { name: 'PlayStation Plus', amount: 7999, everyMonths: 12, dueMonth: '2026-10' },
+    ])
+  })
+})

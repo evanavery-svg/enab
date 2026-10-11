@@ -111,6 +111,19 @@ export type GoalType =
 
 export type GoalCadence = 'weekly' | 'monthly' | 'yearly' | 'custom'
 
+/** One bill inside a bundled target. */
+export interface GoalBill {
+  name: string
+  amount: Cents
+  /** Months between charges: 1 for monthly, 12 for yearly. */
+  everyMonths: number
+  /**
+   * A month the bill is charged in (any year). Longer bills are saved for a
+   * share at a time so the full amount is there in this month each cycle.
+   */
+  dueMonth?: MonthKey
+}
+
 export interface Goal {
   type: GoalType
   /** Target amount in cents (always positive). */
@@ -133,6 +146,15 @@ export interface Goal {
   targetMonth?: MonthKey
   /** Snooze the "underfunded" warning through this month. */
   snoozedThrough?: MonthKey
+  /**
+   * A bundle of bills paid from one category — how tracked subscriptions are
+   * funded. When present, each month asks for every monthly bill plus each
+   * longer bill's share saved toward its next charge; `amount` is then the
+   * average monthly cost, for display.
+   */
+  bills?: GoalBill[]
+  /** Kept up to date automatically from the Subscriptions page. */
+  source?: 'subscriptions'
 }
 
 /* ------------------------------------------------------------------ */
