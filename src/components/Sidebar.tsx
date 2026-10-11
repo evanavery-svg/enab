@@ -74,9 +74,13 @@ export function Sidebar() {
           <span className={`nav-amount ${readyToAssign < 0 ? 'neg' : ''}`}>{money(readyToAssign)}</span>
         </NavLink>
         <NavLink to="/today" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-          <Icon name="calendar" />
+          <Icon name="bell" />
           <span>Today</span>
           {attention > 0 && <span className="nav-badge" aria-label={`${attention} need attention`}>{attention}</span>}
+        </NavLink>
+        <NavLink to="/calendar" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+          <Icon name="calendar" />
+          <span>Cash flow</span>
         </NavLink>
         <NavLink to="/plan" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
           <Icon name="target" />

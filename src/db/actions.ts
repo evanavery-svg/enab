@@ -4,6 +4,7 @@ import { uid } from '../lib/id'
 import { addDays, compareIso, currentMonth, monthOf, today } from '../lib/dates'
 import { subscriptionGoal } from '../lib/subscriptions'
 import { itemKey } from '../lib/grocery'
+import { applyRules, ruleMatches } from '../lib/rules'
 import { nextOccurrence } from '../budget/recurrence'
 import type {
   Account,
@@ -20,6 +21,8 @@ import type {
   ISODate,
   Id,
   MonthKey,
+  Payee,
+  PayeeRule,
   ScheduledTransaction,
   Settings,
   SubTransaction,
@@ -679,8 +682,9 @@ export async function importTransactions(
   accountId: Id,
   rows: ImportedTransaction[],
   opts: { keepBalance?: boolean } = {},
-): Promise<{ imported: number; categorized: number }> {
-  return db.transaction('rw', db.transactions, db.payees, db.accounts, db.categories, async () => {
+): Promise<{ imported: number; categorized: number; tidied: number }> {
+  return db.transaction('rw', db.transactions, db.payees, db.accounts, db.categories, db.payeeRules, async () => {
+    const rules = (await db.payeeRules.toArray()).filter((r) => !r.deleted)
     const payeeByName = new Map(
       (await db.payees.toArray())
         .filter((p) => !p.deleted && !p.transferAccountId)
@@ -689,15 +693,22 @@ export async function importTransactions(
     const liveCategory = new Set((await db.categories.toArray()).filter((c) => !c.deleted).map((c) => c.id))
 
     let categorized = 0
+    let tidied = 0
     for (const row of [...rows].sort((a, b) => compareIso(a.date, b.date))) {
-      let payee = row.payee ? payeeByName.get(row.payee.toLowerCase()) : undefined
-      if (row.payee && !payee) {
-        payee = { id: uid('payee'), name: row.payee, deleted: false }
+      // A rule renames the bank's payee and, when it says so, decides the
+      // category outright — it's the person's own instruction.
+      const ruled = row.payee ? applyRules(rules, row.payee) : { payee: row.payee, categoryId: null, rule: undefined }
+      if (ruled.rule) tidied++
+      const name = ruled.payee
+      let payee = name ? payeeByName.get(name.toLowerCase()) : undefined
+      if (name && !payee) {
+        payee = { id: uid('payee'), name, deleted: false }
         await db.payees.put(payee)
-        payeeByName.set(row.payee.toLowerCase(), payee)
+        payeeByName.set(name.toLowerCase(), payee)
       }
       const remembered = payee?.lastCategoryId && liveCategory.has(payee.lastCategoryId) ? payee.lastCategoryId : null
-      const categoryId = row.categoryId ?? remembered ?? row.guessedCategoryId ?? null
+      const ruleCategory = ruled.categoryId && liveCategory.has(ruled.categoryId) ? ruled.categoryId : null
+      const categoryId = ruleCategory ?? row.categoryId ?? remembered ?? row.guessedCategoryId ?? null
       if (categoryId) categorized++
 
       await createTransaction({
@@ -727,7 +738,7 @@ export async function importTransactions(
       }
     }
 
-    return { imported: rows.length, categorized }
+    return { imported: rows.length, categorized, tidied }
   })
 }
 
@@ -1090,5 +1101,76 @@ export async function removeGroceryItems(ids: Id[]): Promise<void> {
 export async function restoreGroceryItems(items: GroceryItem[]): Promise<void> {
   await db.transaction('rw', db.groceryItems, async () => {
     for (const i of items) await db.groceryItems.update(i.id, { deleted: false, checked: i.checked })
+  })
+}
+
+/* ------------------------------------------------------------------ */
+/* Import rules                                                        */
+/* ------------------------------------------------------------------ */
+
+export type PayeeRuleInput = Pick<PayeeRule, 'match' | 'matchType' | 'renameTo' | 'categoryId'>
+
+export async function savePayeeRule(input: PayeeRuleInput, id?: Id): Promise<Id> {
+  const existing = id ? await db.payeeRules.get(id) : undefined
+  const ruleId = existing?.id ?? uid('rule')
+  await db.payeeRules.put({
+    id: ruleId,
+    match: input.match.trim(),
+    matchType: input.matchType,
+    renameTo: input.renameTo.trim(),
+    categoryId: input.categoryId,
+    createdAt: existing?.createdAt ?? new Date().toISOString(),
+    deleted: false,
+  })
+  return ruleId
+}
+
+/** Soft delete, so it disappears on other devices too. Past transactions keep what the rule did. */
+export async function deletePayeeRule(id: Id): Promise<void> {
+  await db.payeeRules.update(id, { deleted: true })
+}
+
+/**
+ * Do to past transactions what a rule does on import: the bank names it
+ * matches become one payee with the new name, and their plain transactions
+ * move to its category. Splits and transfers keep their own categories.
+ */
+export async function applyRuleToExisting(rule: PayeeRuleInput): Promise<{ payees: number; transactions: number }> {
+  return db.transaction('rw', db.payees, db.transactions, async () => {
+    const payees = (await db.payees.toArray()).filter((p) => !p.deleted && !p.transferAccountId)
+    const matching = payees.filter((p) => ruleMatches(rule, p.name))
+    if (!matching.length) return { payees: 0, transactions: 0 }
+
+    const rename = rule.renameTo.trim()
+    let group = matching.map((p) => p.id)
+    let target: Payee | undefined
+    if (rename) {
+      target = payees.find((p) => p.name.toLowerCase() === rename.toLowerCase())
+      if (!target) {
+        target = { id: uid('payee'), name: rename, deleted: false }
+        await db.payees.put(target)
+      }
+      group = [target.id]
+    }
+
+    const touched = new Set<Id>()
+    for (const p of matching) {
+      const rows = await db.transactions.where('payeeId').equals(p.id).toArray()
+      for (const t of rows) {
+        if (t.deleted) continue
+        const patch: Partial<Transaction> = {}
+        if (target && t.payeeId !== target.id) patch.payeeId = target.id
+        if (rule.categoryId && t.categoryId !== rule.categoryId && !t.subtransactions?.length && !t.transferAccountId) {
+          patch.categoryId = rule.categoryId
+        }
+        if (Object.keys(patch).length) {
+          await db.transactions.update(t.id, patch)
+          touched.add(t.id)
+        }
+      }
+      if (target && p.id !== target.id) await db.payees.update(p.id, { deleted: true })
+    }
+    if (rule.categoryId) for (const id of group) await db.payees.update(id, { lastCategoryId: rule.categoryId })
+    return { payees: matching.length, transactions: touched.size }
   })
 }

@@ -6,10 +6,15 @@ import { Field } from '../components/Fields'
 import { useData } from '../hooks/useData'
 import { toast } from '../state/ui'
 import { deletePayee, mergePayees, renamePayee } from '../db/actions'
-import type { Id } from '../types'
+import { RuleSheet } from '../components/RuleSheet'
+import { applyRuleToExisting, savePayeeRule } from '../db/actions'
+import { cleanPayeeName, normalizePayee, suggestRules, type RuleSuggestion } from '../lib/rules'
+import type { Id, Payee, PayeeRule } from '../types'
 
 export default function PayeesPage() {
-  const { payees, transactions, categoryById, money } = useData()
+  const { payees, transactions, categoryById, money, payeeRules } = useData()
+  const [tab, setTab] = useState<'payees' | 'rules'>('payees')
+  const [ruleFor, setRuleFor] = useState<Payee | null>(null)
   const [query, setQuery] = useState('')
   const [renaming, setRenaming] = useState<Id | null>(null)
   const [newName, setNewName] = useState('')
@@ -45,14 +50,22 @@ export default function PayeesPage() {
       <header className="topbar">
         <NavMenuButton />
         <h1>Payees</h1>
-        <span className="spacer" />
-        <span className="dim" style={{ fontSize: 13 }}>
-          {visible.length}
-        </span>
       </header>
 
       <div className="content content-pad">
         <div className="content-narrow">
+          <div className="segmented" role="tablist" style={{ marginBottom: 14 }}>
+            <button role="tab" aria-pressed={tab === 'payees'} onClick={() => setTab('payees')}>
+              Payees <span className="tab-count">{visible.length}</span>
+            </button>
+            <button role="tab" aria-pressed={tab === 'rules'} onClick={() => setTab('rules')}>
+              Import rules <span className="tab-count">{payeeRules.length}</span>
+            </button>
+          </div>
+          {tab === 'rules' ? (
+            <RulesPanel />
+          ) : (
+          <>
           <input
             className="input"
             style={{ marginBottom: 14 }}
@@ -99,6 +112,9 @@ export default function PayeesPage() {
                     >
                       <Icon name="transfer" size={16} />
                     </button>
+                    <button className="icon-btn" title="Make an import rule" aria-label={`Make a rule for ${p.name}`} onClick={() => setRuleFor(p)}>
+                      <Icon name="filter" size={16} />
+                    </button>
                     <button className="icon-btn" title="Delete" onClick={() => setConfirmDelete(p.id)}>
                       <Icon name="trash" size={16} />
                     </button>
@@ -107,8 +123,21 @@ export default function PayeesPage() {
               })}
             </div>
           )}
+          </>
+          )}
         </div>
       </div>
+
+      {ruleFor && (
+        <RuleSheet
+          initial={{
+            match: normalizePayee(cleanPayeeName(ruleFor.name)),
+            renameTo: cleanPayeeName(ruleFor.name),
+            categoryId: ruleFor.lastCategoryId ?? null,
+          }}
+          onClose={() => setRuleFor(null)}
+        />
+      )}
 
       {renaming && (
         <Modal
@@ -188,6 +217,106 @@ export default function PayeesPage() {
             setConfirmDelete(null)
           }}
           onCancel={() => setConfirmDelete(null)}
+        />
+      )}
+    </>
+  )
+}
+
+const TYPE_WORD: Record<PayeeRule['matchType'], string> = { contains: 'contains', startsWith: 'starts with', exact: 'is' }
+
+/** The rules themselves, and rules worth making from messy names already in the budget. */
+function RulesPanel() {
+  const { payees, transactions, payeeRules, categories, categoryById } = useData()
+  const [editing, setEditing] = useState<PayeeRule | 'new' | null>(null)
+  const [fromSuggestion, setFromSuggestion] = useState<RuleSuggestion | null>(null)
+  const [showAll, setShowAll] = useState(false)
+  const suggestions = useMemo(
+    () => suggestRules(payees, transactions, payeeRules, categories),
+    [payees, transactions, payeeRules, categories],
+  )
+  const sorted = [...payeeRules].sort((a, b) => (a.renameTo || a.match).localeCompare(b.renameTo || b.match))
+
+  async function accept(s: RuleSuggestion) {
+    const input = { match: s.match, matchType: 'contains' as const, renameTo: s.renameTo, categoryId: s.categoryId }
+    await savePayeeRule(input)
+    const done = await applyRuleToExisting(input)
+    toast(`Rule added · ${done.transactions} transaction${done.transactions === 1 ? '' : 's'} tidied`)
+  }
+
+  return (
+    <>
+      <p className="rules-lead">
+        Rules tidy your bank's payee names as you import, like turning <code>SQ *BLUE BOTTLE 0423</code> into Blue Bottle,
+        and can file them in a category every time.
+      </p>
+
+      {suggestions.length > 0 && (
+        <section className="card rules-suggest">
+          <header>
+            <Icon name="star" size={16} />
+            <div>
+              <h3>Tidy up {suggestions.length} bank name{suggestions.length === 1 ? '' : 's'}</h3>
+              <p>Found in what you've imported. Add one and its past transactions are fixed too.</p>
+            </div>
+          </header>
+          {(showAll ? suggestions : suggestions.slice(0, 5)).map((s) => (
+            <div className="rule-sug" key={s.key}>
+              <div className="what">
+                <div className="to">
+                  {s.renameTo}
+                  {s.categoryId && <span className="cat">{categoryById.get(s.categoryId)?.name}</span>}
+                </div>
+                <div className="from truncate">{s.names.join(' · ')}</div>
+              </div>
+              <button className="btn btn-sm" onClick={() => setFromSuggestion(s)} aria-label={`Edit suggestion for ${s.renameTo}`}>
+                <Icon name="edit" size={14} />
+              </button>
+              <button className="btn btn-sm btn-primary" onClick={() => void accept(s)}>
+                Add
+              </button>
+            </div>
+          ))}
+          {suggestions.length > 5 && (
+            <button className="linkish more" onClick={() => setShowAll(!showAll)}>
+              {showAll ? 'Show fewer' : `Show all ${suggestions.length}`}
+            </button>
+          )}
+        </section>
+      )}
+
+      <div className="rules-head">
+        <h3>Your rules</h3>
+        <button className="btn btn-sm" onClick={() => setEditing('new')}>
+          <Icon name="plus" size={14} /> New rule
+        </button>
+      </div>
+      {sorted.length === 0 ? (
+        <div className="card empty" style={{ padding: 22 }}>
+          <p style={{ margin: 0 }}>No rules yet. Add one above, or from any payee on the Payees tab.</p>
+        </div>
+      ) : (
+        <div className="card">
+          {sorted.map((r) => (
+            <button className="rule-row" key={r.id} onClick={() => setEditing(r)}>
+              <span className="when">
+                Payee {TYPE_WORD[r.matchType]} <q>{r.match}</q>
+              </span>
+              <span className="then">
+                <Icon name="chevronRight" size={14} />
+                {r.renameTo || 'same name'}
+                {r.categoryId && <span className="cat">{categoryById.get(r.categoryId)?.name ?? 'deleted category'}</span>}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {editing && <RuleSheet rule={editing === 'new' ? undefined : editing} onClose={() => setEditing(null)} />}
+      {fromSuggestion && (
+        <RuleSheet
+          initial={{ match: fromSuggestion.match, renameTo: fromSuggestion.renameTo, categoryId: fromSuggestion.categoryId }}
+          onClose={() => setFromSuggestion(null)}
         />
       )}
     </>

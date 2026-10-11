@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Icon } from '../components/Icon'
 import { NavMenuButton } from '../components/NavMenuButton'
 import { BarChart, Legend, LineChart, Sparkline } from '../components/charts'
@@ -166,6 +167,9 @@ export default function ReportsPage() {
         <NavMenuButton />
         <h1>Reports</h1>
         <span className="spacer" />
+        <Link to="/review" className="btn btn-sm">
+          <Icon name="calendar" size={15} /> <span className="hide-phone">Month in </span>review
+        </Link>
         <select className="select" style={{ width: 'auto' }} value={range} onChange={(e) => setRange(e.target.value as RangeKey)}>
           {RANGES.map((r) => (
             <option key={r.key} value={r.key}>

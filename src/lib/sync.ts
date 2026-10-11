@@ -8,6 +8,7 @@ import type {
   GroceryItem,
   MonthNote,
   Payee,
+  PayeeRule,
   ScheduledTransaction,
   Subscription,
   Transaction,
@@ -36,6 +37,8 @@ export interface SyncPacket {
   subscriptions?: Subscription[]
   /** Absent from packets made before the grocery list existed. */
   groceryItems?: GroceryItem[]
+  /** Absent from packets made before import rules existed. */
+  payeeRules?: PayeeRule[]
 }
 
 /**
@@ -71,7 +74,7 @@ async function deriveKey(passphrase: string, salt: Uint8Array): Promise<CryptoKe
 }
 
 export async function exportSyncPacket(): Promise<SyncPacket> {
-  const [accounts, categoryGroups, categories, payees, transactions, scheduled, budgetEntries, monthNotes, rawAttachments, subscriptions, groceryItems] =
+  const [accounts, categoryGroups, categories, payees, transactions, scheduled, budgetEntries, monthNotes, rawAttachments, subscriptions, groceryItems, payeeRules] =
     await Promise.all([
       db.accounts.toArray(),
       db.categoryGroups.toArray(),
@@ -84,6 +87,7 @@ export async function exportSyncPacket(): Promise<SyncPacket> {
       db.attachments.toArray(),
       db.subscriptions.toArray(),
       db.groceryItems.toArray(),
+      db.payeeRules.toArray(),
     ])
 
   const attachments = await Promise.all(
@@ -115,6 +119,7 @@ export async function exportSyncPacket(): Promise<SyncPacket> {
     attachments,
     subscriptions,
     groceryItems,
+    payeeRules,
   }
 }
 
@@ -230,6 +235,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
     localAttachments,
     localSubscriptions,
     localGroceries,
+    localRules,
   ] = await Promise.all([
     db.accounts.toArray(),
     db.categoryGroups.toArray(),
@@ -242,6 +248,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
     db.attachments.toArray(),
     db.subscriptions.toArray(),
     db.groceryItems.toArray(),
+    db.payeeRules.toArray(),
   ])
 
   // Starter categories are generated with fresh ids on every install, so a
@@ -267,6 +274,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
   const notes = mergeRecords(localMonthNotes, packet.monthNotes ?? [], (n) => n.month)
   const subs = mergeRecords(localSubscriptions, packet.subscriptions ?? [], byId)
   const groceries = mergeRecords(localGroceries, packet.groceryItems ?? [], byId)
+  const rules = mergeRecords(localRules, packet.payeeRules ?? [], byId)
 
   // Attachment blobs never change once written, so an id we already hold needs
   // no decoding — that keeps a repeat sync from re-inflating every receipt.
@@ -282,7 +290,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
   await preservingTimestamps(async () => {
     await db.transaction(
       'rw',
-      [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes, db.attachments, db.subscriptions, db.groceryItems],
+      [db.accounts, db.categoryGroups, db.categories, db.payees, db.transactions, db.scheduled, db.budgetEntries, db.monthNotes, db.attachments, db.subscriptions, db.groceryItems, db.payeeRules],
       async () => {
         if (starterGroups.length) await db.categoryGroups.bulkDelete(starterGroups.map((g) => g.id))
         if (starterCategories.length) await db.categories.bulkDelete(starterCategories.map((c) => c.id))
@@ -296,6 +304,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
         if (notes.changed.length) await db.monthNotes.bulkPut(notes.changed)
         if (subs.changed.length) await db.subscriptions.bulkPut(subs.changed)
         if (groceries.changed.length) await db.groceryItems.bulkPut(groceries.changed)
+        if (rules.changed.length) await db.payeeRules.bulkPut(rules.changed)
         if (newAttachments.length) {
           await db.attachments.bulkPut(
             newAttachments.map((a) => ({
@@ -327,7 +336,7 @@ export async function mergeImport(packet: SyncPacket): Promise<SyncSummary> {
     )
   })
 
-  const parts = [accts, groups, cats, pays, txns, scheds, entries, notes, subs, groceries]
+  const parts = [accts, groups, cats, pays, txns, scheds, entries, notes, subs, groceries, rules]
   return {
     totalAdded: parts.reduce((s, r) => s + r.added, 0) + newAttachments.length,
     totalUpdated: parts.reduce((s, r) => s + r.updated, 0),

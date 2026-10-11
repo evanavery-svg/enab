@@ -9,9 +9,14 @@
  * Everything detected stays overridable in the import screen.
  */
 import { parseCsv } from './csv'
+import { guessCategory } from './categorize'
 import type { Cents, ISODate, Transaction } from '../types'
 
 export type ColumnRole = 'ignore' | 'date' | 'payee' | 'memo' | 'amount' | 'outflow' | 'inflow' | 'category' | 'direction'
+
+/** Payee wording that only ever describes money arriving. */
+const INFLOW_HINT =
+  /payroll|salary|paycheck|direct ?dep|dir ?dep|payment.{0,12}thank you|thank you.{0,12}payment|autopay payment|\brefund|interest paid|mobile deposit|\bdeposit\b/i
 
 export interface CsvAnalysis {
   /** Index of the header row within `rows`, or null when the file has none. */
@@ -419,20 +424,25 @@ export function analyzeCsv(text: string, opts: { preferDayFirst?: boolean } = {}
   )
   const decimalComma = detectDecimalComma(moneyCells)
 
-  // Most rows in any export are purchases, so whichever sign most of the
-  // signed amounts carry is the file's sign for spending.
+  // Which sign is spending? The payees say it best: a paycheck, a deposit or
+  // a "payment — thank you" is money coming in, and a known merchant is money
+  // going out. Plain counting (most rows in any export are purchases) only
+  // breaks the tie — on its own it flipped short files with a few paychecks.
   let spendingPositive = false
   const amountCol = roles.indexOf('amount')
+  const payeeCol = roles.indexOf('payee')
   if (amountCol >= 0 && !roles.includes('direction')) {
-    let pos = 0
-    let neg = 0
+    let score = 0
     for (const r of body) {
       const a = readAmount(r[amountCol] ?? '', decimalComma)
       if (!a || a.explicit || a.cents === 0) continue
-      if (a.cents > 0) pos++
-      else neg++
+      const sign = a.cents > 0 ? 1 : -1
+      const payee = payeeCol >= 0 ? (r[payeeCol] ?? '') : ''
+      if (INFLOW_HINT.test(payee)) score -= 3 * sign
+      else if (payee && guessCategory(payee, -1).kind === 'spending') score += sign
+      else score += 0.5 * sign
     }
-    spendingPositive = pos > neg
+    spendingPositive = score > 0
   }
 
   return {

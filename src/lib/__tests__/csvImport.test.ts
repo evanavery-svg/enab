@@ -122,3 +122,23 @@ describe('findDuplicates', () => {
     expect(findDuplicates([row('2026-10-02', -575), row('2026-10-02', 240000)], [gone, opening])).toEqual([false, false])
   })
 })
+
+describe('which sign is spending, in short files', () => {
+  it('reads a checking file with more paychecks than purchases the right way round', () => {
+    const csv = [
+      'Date,Description,Amount',
+      '2026-10-03,SQ *BLUE BOTTLE 0423,-6.50',
+      '2026-10-04,KROGER #432,-84.10',
+      '2026-10-01,ACME CORP PAYROLL PPD ID 1234,2650.00',
+      '2026-09-15,ACME CORP PAYROLL PPD ID 1234,2650.00',
+      '2026-09-01,ACME CORP PAYROLL PPD ID 1234,2650.00',
+      '2026-08-15,ACME CORP PAYROLL PPD ID 1234,2650.00',
+    ].join('\n')
+    expect(analyzeCsv(csv).spendingPositive).toBe(false)
+  })
+
+  it('reads a card file whose only negative row is the payment', () => {
+    const csv = ['Date,Description,Amount', '2026-10-03,WHOLE FOODS,84.12', '2026-10-08,AUTOPAY PAYMENT - THANK YOU,-200.00'].join('\n')
+    expect(analyzeCsv(csv).spendingPositive).toBe(true)
+  })
+})

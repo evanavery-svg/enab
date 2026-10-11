@@ -69,6 +69,17 @@ export default function TodayPage() {
             </div>
           </section>
 
+          {d.getDate() <= 7 && (
+            <button className="card today-card review-invite" onClick={() => navigate('/review')}>
+              <Icon name="chart" size={18} />
+              <div className="txt">
+                <strong>Your {MONTH_NAMES[(d.getMonth() + 11) % 12]} in review</strong>
+                <span>What came in, where it went, and targets worth adjusting.</span>
+              </div>
+              <Icon name="chevronRight" size={18} />
+            </button>
+          )}
+
           {c.readyToAssign !== 0 && (
             <section className={`card today-card rta-card${c.readyToAssign < 0 ? ' bad' : ''}`}>
               <Icon name={c.readyToAssign < 0 ? 'alert' : 'layers'} size={18} />

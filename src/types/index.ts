@@ -444,3 +444,25 @@ export interface GroceryItem {
   updatedAt?: string
   deleted: boolean
 }
+
+/* ------------------------------------------------------------------ */
+/* Import rules                                                        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Tidies bank payee names on import: "SQ *BLUE BOTTLE 0423" becomes
+ * "Blue Bottle" and lands in Coffee, every time.
+ */
+export interface PayeeRule {
+  id: Id
+  /** Text to look for in the bank's payee name (compared without case or punctuation). */
+  match: string
+  matchType: 'contains' | 'startsWith' | 'exact'
+  /** The name to use instead. Empty keeps the bank's name. */
+  renameTo: string
+  /** The category to file it under. Null leaves categorizing to the usual guesses. */
+  categoryId: Id | null
+  createdAt: string
+  updatedAt?: string
+  deleted: boolean
+}

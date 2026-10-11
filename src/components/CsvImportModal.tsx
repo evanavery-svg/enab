@@ -6,6 +6,7 @@ import { useData } from '../hooks/useData'
 import { toast } from '../state/ui'
 import { importTransactions } from '../db/actions'
 import { guessCategory } from '../lib/categorize'
+import { applyRules } from '../lib/rules'
 import {
   analyzeCsv,
   decodeCsvBytes,
@@ -52,7 +53,7 @@ export function CsvImportModal({
   /** Called after a successful import, before the modal closes. */
   onImported?: (result: { imported: number; categorized: number }) => void
 }) {
-  const { openAccounts, categories, transactions, balances, settings, money } = useData()
+  const { openAccounts, categories, transactions, balances, settings, money, payeeRules } = useData()
   const [accountId, setAccountId] = useState<Id>(initialAccountId ?? openAccounts[0]?.id ?? '')
   const [text, setText] = useState('')
   const [fileName, setFileName] = useState('')
@@ -149,6 +150,7 @@ export function CsvImportModal({
       )
       const parts = [`Imported ${result.imported} transaction${result.imported === 1 ? '' : 's'}`]
       if (result.categorized) parts.push(`${result.categorized} sorted into categories`)
+      if (result.tidied) parts.push(`${result.tidied} tidied by your rules`)
       if (dupeCount) parts.push(`${dupeCount} duplicate${dupeCount === 1 ? '' : 's'} skipped`)
       toast(parts.join(' · '))
       onImported?.(result)
@@ -316,7 +318,16 @@ export function CsvImportModal({
                       {formatDate(r.date, settings.dateFormat)}
                     </span>
                     <span className="grow truncate" style={duplicate[i] ? { textDecoration: 'line-through' } : undefined}>
-                      {r.payee || 'No payee'}
+                      {(() => {
+                        const ruled = r.payee ? applyRules(payeeRules, r.payee) : null
+                        return ruled?.rule ? (
+                          <>
+                            {ruled.payee} <span className="rule-tag" title={`Bank name: ${r.payee}`}>rule</span>
+                          </>
+                        ) : (
+                          r.payee || 'No payee'
+                        )
+                      })()}
                     </span>
                     <span className={`num ${r.amount > 0 ? 'pos' : ''}`} style={{ fontFamily: 'var(--font-num)' }}>
                       {money(r.amount, { forceSign: r.amount > 0 })}

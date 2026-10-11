@@ -92,3 +92,4 @@
   .today-row .what:active,
   .sidebar-search:active { background: var(--surface-2); }
 }
+@media (hover: none) { .rule-row:active { background: var(--surface-2); } }

@@ -25,6 +25,8 @@ const pages = {
   groceries: () => import('./pages/GroceriesPage'),
   today: () => import('./pages/TodayPage'),
   search: () => import('./pages/SearchPage'),
+  calendar: () => import('./pages/CalendarPage'),
+  review: () => import('./pages/ReviewPage'),
 }
 const AccountsPage = lazy(pages.accounts)
 const RegisterPage = lazy(pages.register)
@@ -37,6 +39,8 @@ const SubscriptionsPage = lazy(pages.subscriptions)
 const GroceriesPage = lazy(pages.groceries)
 const TodayPage = lazy(pages.today)
 const SearchPage = lazy(pages.search)
+const CalendarPage = lazy(pages.calendar)
+const ReviewPage = lazy(pages.review)
 
 /**
  * Load every other screen's code once the app has settled. Until a lazy page
@@ -194,6 +198,9 @@ export default function App() {
             <Route path="/groceries" element={<GroceriesPage />} />
             <Route path="/today" element={<TodayPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/calendar" element={<CalendarPage />} />
+            <Route path="/review" element={<ReviewPage />} />
+            <Route path="/review/:month" element={<ReviewPage />} />
             <Route path="/payees" element={<PayeesPage />} />
             <Route path="/scheduled" element={<ScheduledPage />} />
             <Route path="/settings" element={<SettingsPage />} />

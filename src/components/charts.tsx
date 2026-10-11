@@ -19,7 +19,7 @@ export interface Point {
 }
 
 /** Track a container's width so the SVG can be laid out in real pixels. */
-function useWidth() {
+export function useWidth() {
   const ref = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
   useEffect(() => {
