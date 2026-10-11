@@ -133,9 +133,15 @@ export function CategoryDetail({ categoryId }: { categoryId: Id }) {
         onClose={() => close(null)}
         footer={
           <>
-            <button className="btn btn-block" onClick={() => setMoving({ from: categoryId })}>
-              <Icon name="transfer" size={16} /> Move money
-            </button>
+            {state && state.available < 0 ? (
+              <button className="btn btn-block" onClick={() => setMoving({ to: categoryId, amount: -state.available })}>
+                <Icon name="alert" size={16} /> Cover overspending
+              </button>
+            ) : (
+              <button className="btn btn-block" onClick={() => setMoving({ from: categoryId })}>
+                <Icon name="transfer" size={16} /> Move money
+              </button>
+            )}
             <button
               className="btn btn-primary btn-block"
               onClick={() => openTxn({ categoryId })}

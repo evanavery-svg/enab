@@ -1,7 +1,7 @@
 {
   "name": "enab",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.3.1",
   "type": "module",
   "description": "ENAB - a zero-based envelope budgeting PWA",
   "scripts": {

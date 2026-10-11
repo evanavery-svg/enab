@@ -15,7 +15,7 @@ import {
   updateTransaction,
 } from '../db/actions'
 import { FREQUENCIES, FREQUENCY_LABELS } from '../budget/recurrence'
-import { today } from '../lib/dates'
+import { monthOf, today } from '../lib/dates'
 import { splitEvenly } from '../lib/money'
 import { uid } from '../lib/id'
 import type { Attachment, Cents, FlagColor, Frequency, Id, SubTransaction } from '../types'
@@ -35,7 +35,7 @@ const MAX_ATTACHMENT_BYTES = MAX_ATTACHMENT_MB * 1024 * 1024
 type Leg = SubTransaction
 
 export function TransactionModal() {
-  const { accounts, openAccounts, payees, transactions, accountById, money } = useData()
+  const { accounts, openAccounts, payees, transactions, accountById, categoryById, categories, budget, money } = useData()
   const modal = useUi((s) => s.txnModal)
   const close = useUi((s) => s.closeTxnModal)
 
@@ -92,22 +92,61 @@ export function TransactionModal() {
     }
   }, [existing])
 
+  // The payee you need is almost always one you used recently, so the list
+  // opens on those, each showing the category it will fill in. Transfers are
+  // rare by comparison and sit at the end.
   const payeeOptions = useMemo(() => {
+    const lastUsed = new Map<Id, string>()
+    for (const t of transactions) {
+      if (!t.payeeId) continue
+      const prev = lastUsed.get(t.payeeId)
+      if (!prev || t.date > prev) lastUsed.set(t.payeeId, t.date)
+    }
     const regular = payees
       .filter((p) => !p.transferAccountId)
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((p) => ({ id: p.id, label: p.name }))
+      .sort((a, b) => {
+        const da = lastUsed.get(a.id) ?? ''
+        const db = lastUsed.get(b.id) ?? ''
+        return da === db ? a.name.localeCompare(b.name) : db.localeCompare(da)
+      })
+      .map((p) => ({
+        id: p.id,
+        label: p.name,
+        group: p.lastCategoryId ? categoryById.get(p.lastCategoryId)?.name : undefined,
+      }))
     const transfers = accounts
       .filter((a) => a.id !== accountId && !a.closed)
       .map((a) => ({ id: `transfer:${a.id}`, label: `Transfer : ${a.name}`, group: 'Transfer' }))
-    return [...transfers, ...regular]
-  }, [payees, accounts, accountId])
+    return [...regular, ...transfers]
+  }, [payees, transactions, accounts, accountId, categoryById])
+
+  const inflowCategory = useMemo(() => categories.find((c) => c.isInflow), [categories])
+  /** Income goes to Ready to Assign unless something else was picked on purpose. */
+  function setDirection(inflow: boolean) {
+    setIsInflow(inflow)
+    if (inflow && !categoryId && inflowCategory) setCategoryId(inflowCategory.id)
+    if (!inflow && categoryId === inflowCategory?.id) setCategoryId(null)
+  }
+
 
   const signed = (v: Cents) => (isInflow ? Math.abs(v) : -Math.abs(v))
   const amount = signed(magnitude)
 
   const legTotal = legs.reduce((sum, l) => sum + l.amount, 0)
   const remaining = amount - legTotal
+
+  // What the chosen envelope has in the month this transaction lands in, and
+  // what it will have once this is saved — the number you are really checking.
+  const categoryHint = useMemo(() => {
+    if (!categoryId || categoryId === inflowCategory?.id || isSplit) return undefined
+    const state = budget.categoryStates.get(monthOf(date))?.get(categoryId)
+    if (!state) return undefined
+    const name = categoryById.get(categoryId)?.name ?? 'This category'
+    const delta = existing && existing.categoryId === categoryId ? amount - existing.amount : amount
+    const after = state.available + delta
+    if (delta === 0) return `${name} has ${money(state.available)} available`
+    return `${name} has ${money(state.available)} · ${money(after)} after this`
+  }, [categoryId, inflowCategory, isSplit, budget, date, categoryById, amount, existing, money])
 
   const account = accountById.get(accountId)
   const transferTarget = transferAccountId ? accountById.get(transferAccountId) : undefined
@@ -238,10 +277,10 @@ export function TransactionModal() {
         )}
 
         <div className="segmented" style={{ marginBottom: 14 }}>
-          <button aria-pressed={!isInflow} onClick={() => setIsInflow(false)}>
+          <button aria-pressed={!isInflow} onClick={() => setDirection(false)}>
             Outflow
           </button>
-          <button aria-pressed={isInflow} onClick={() => setIsInflow(true)}>
+          <button aria-pressed={isInflow} onClick={() => setDirection(true)}>
             Inflow
           </button>
         </div>
@@ -288,7 +327,7 @@ export function TransactionModal() {
             hint={
               transferNeedsCategory
                 ? 'One side of this transfer is off budget, so it needs a category.'
-                : undefined
+                : categoryHint
             }
           >
             <CategorySelect value={categoryId} onChange={setCategoryId} />

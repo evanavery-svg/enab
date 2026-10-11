@@ -217,7 +217,7 @@ export default function BudgetPage() {
               states={states}
               onOpenCategory={openDetail}
               onAddCategory={() => setAddingCategoryTo(group.id)}
-              onMoveFrom={(id, amount) => setMoving({ from: id, amount })}
+              onMove={setMoving}
             />
           ))}
 
@@ -428,14 +428,14 @@ function GroupCard({
   states,
   onOpenCategory,
   onAddCategory,
-  onMoveFrom,
+  onMove,
 }: {
   group: CategoryGroup
   items: Category[]
   states: Map<Id, CategoryMonthState> | undefined
   onOpenCategory: (id: Id) => void
   onAddCategory: () => void
-  onMoveFrom: (id: Id, amount: Cents) => void
+  onMove: (opts: { from?: Id | null; to?: Id | null; amount?: Cents }) => void
 }) {
   const { money } = useData()
   const [renaming, setRenaming] = useState(false)
@@ -537,7 +537,7 @@ function GroupCard({
               category={c}
               state={states?.get(c.id)}
               onOpen={() => onOpenCategory(c.id)}
-              onMoveFrom={onMoveFrom}
+              onMove={onMove}
             />
           ))}
           {!group.isSystem && (
@@ -592,12 +592,12 @@ function CategoryRow({
   category,
   state,
   onOpen,
-  onMoveFrom,
+  onMove,
 }: {
   category: Category
   state: CategoryMonthState | undefined
   onOpen: () => void
-  onMoveFrom: (id: Id, amount: Cents) => void
+  onMove: (opts: { from?: Id | null; to?: Id | null; amount?: Cents }) => void
 }) {
   const { money } = useData()
   const month = useUi((s) => s.month)
@@ -668,7 +668,7 @@ function CategoryRow({
           {state.available > 0 && (
             <button
               onClick={() => {
-                onMoveFrom(category.id, state.available)
+                onMove({ from: category.id, amount: state.available })
                 setPillAnchor(null)
               }}
             >
@@ -679,7 +679,9 @@ function CategoryRow({
           {state.available < 0 && (
             <button
               onClick={() => {
-                onMoveFrom(category.id, state.available)
+                // Money comes *into* the overspent category — this used to open
+                // the form the other way round, with the empty category as source.
+                onMove({ to: category.id, amount: -state.available })
                 setPillAnchor(null)
               }}
             >

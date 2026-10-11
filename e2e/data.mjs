@@ -170,5 +170,34 @@ await step('restored budget numbers survive', async () => {
   if (avail !== '$100.00') throw new Error(`Vacation after restore: ${avail}`)
 })
 
+await step('cover overspending in one tap', async () => {
+  // Spend from an empty envelope, so it goes red…
+  await page.getByRole('link', { name: /^Budget/ }).first().click()
+  await page.waitForTimeout(500)
+  await addTransaction(page)
+  await page.getByLabel('Amount', { exact: true }).fill('40')
+  await page.getByLabel('Payee', { exact: true }).fill('Coffee Cart')
+  await page.getByLabel('Category', { exact: true }).selectOption({ label: 'Eating Out' })
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.waitForTimeout(700)
+  const eatingOut = page.locator('.cat-row', { hasText: 'Eating Out' }).first()
+  if (!(await eatingOut.locator('.avail-pill').getAttribute('class')).includes('overspent')) {
+    throw new Error('Eating Out should be overspent')
+  }
+  // …then cover it from a category with money, with one tap.
+  await eatingOut.locator('.avail-pill').click()
+  await page.locator('.menu button', { hasText: 'Cover overspending' }).click()
+  await page.waitForTimeout(400)
+  const need = await page.locator('.cover-need .v').innerText()
+  if (!need.includes('40.00')) throw new Error(`cover sheet asks for ${need}`)
+  await page.locator('.cover-list button', { hasText: 'Groceries' }).click()
+  await page.waitForTimeout(600)
+  if (await page.locator('.modal').isVisible().catch(() => false)) throw new Error('cover sheet stayed open after a full cover')
+  const cls = await eatingOut.locator('.avail-pill').getAttribute('class')
+  if (cls.includes('overspent')) throw new Error(`still overspent: ${cls}`)
+  const pill = await eatingOut.locator('.avail-pill').innerText()
+  if (!pill.includes('0.00') || pill.includes('-')) throw new Error(`Eating Out now shows ${pill}`)
+})
+
 await browser.close()
 finish(errors)

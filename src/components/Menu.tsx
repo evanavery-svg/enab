@@ -21,7 +21,9 @@ export function Popover({
   const ref = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
 
-  useLayoutEffect(() => {
+  // Where to put it: below the anchor, or above when that would overflow,
+  // and nudged inside the viewport sideways.
+  const place = () => {
     if (!anchor || !ref.current) return
     const a = anchor.getBoundingClientRect()
     const el = ref.current.getBoundingClientRect()
@@ -37,7 +39,9 @@ export function Popover({
     left = Math.max(margin, left)
 
     setPos({ top, left })
-  }, [anchor, align])
+  }
+
+  useLayoutEffect(place, [anchor, align])
 
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -46,20 +50,26 @@ export function Popover({
       onClose()
     }
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    // The popover is `position: fixed`, so it must follow its anchor when the
+    // page scrolls under it. It used to close instead, which on a phone meant
+    // a tap landing while a flick was still settling opened nothing at all.
+    let frame = 0
+    const follow = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(place)
+    }
     document.addEventListener('mousedown', onDown)
     document.addEventListener('keydown', onKey)
-    window.addEventListener('resize', onClose)
-    // The popover is `position: fixed`, so it does not track its anchor if
-    // the page scrolls under it (the document itself can scroll on a phone
-    // now) — close it rather than leave it floating disconnected.
-    window.addEventListener('scroll', onClose, true)
+    window.addEventListener('resize', follow)
+    window.addEventListener('scroll', follow, true)
     return () => {
+      cancelAnimationFrame(frame)
       document.removeEventListener('mousedown', onDown)
       document.removeEventListener('keydown', onKey)
-      window.removeEventListener('resize', onClose)
-      window.removeEventListener('scroll', onClose, true)
+      window.removeEventListener('resize', follow)
+      window.removeEventListener('scroll', follow, true)
     }
-  }, [anchor, onClose])
+  })
 
   return createPortal(
     <div

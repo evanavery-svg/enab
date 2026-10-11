@@ -952,3 +952,55 @@
   .month-overview { margin-bottom: 12px; padding: 12px 14px 10px; }
   .mo-stats .v { font-size: 15.5px; }
 }
+
+/* ------------------------------------------------------------------ *
+ * Cover overspending
+ * ------------------------------------------------------------------ */
+
+.cover-need {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border-radius: var(--radius);
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.cover-need .k { font-size: 13px; font-weight: 650; }
+.cover-need .v { font-size: 22px; font-weight: 750; letter-spacing: -0.02em; }
+
+.cover-list { list-style: none; margin: 0; padding: 0; }
+.cover-list li + li { border-top: 1px solid var(--border); }
+.cover-list button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 4px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 14.5px;
+}
+@media (hover: hover) {
+  .cover-list button:hover { background: var(--surface-2); }
+}
+.cover-list .who { flex: 1; min-width: 0; }
+.cover-list .name { display: block; font-weight: 600; }
+.cover-list .sub { display: block; font-size: 12px; color: var(--text-faint); }
+.cover-list .has { color: var(--positive); font-weight: 650; }
+.cover-list .take {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  padding: 4px 6px 4px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--text-dim);
+}
+.cover-list .take.partial { color: var(--warning); background: var(--warning-soft); }
